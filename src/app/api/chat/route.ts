@@ -50,5 +50,5 @@ Language: German (always reply in German).
         messages,
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
 }
