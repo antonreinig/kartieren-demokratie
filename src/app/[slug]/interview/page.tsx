@@ -4,23 +4,42 @@ import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Send, Loader2, Mic } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
+import { useChat } from 'ai/react'
+import { toast } from "sonner"
 
 export default function InterviewPage() {
     const params = useParams()
     const slug = params?.slug as string
 
-    // Placeholder state for chat
-    const [messages, setMessages] = useState([
-        { role: 'assistant', content: 'Hallo! Schön, dass du dich einbringen möchtest. Was sind deine Gedanken zu diesem Thema?' }
-    ])
-    const [input, setInput] = useState('')
+    // Connect to AI API
+    const { messages, input, setInput, handleSubmit, isLoading, error } = useChat({
+        api: '/api/chat',
+        body: { slug },
+        initialMessages: [
+            { id: 'welcome', role: 'assistant', content: 'Hallo! Schön, dass du dich einbringen möchtest. Was sind deine Gedanken zu diesem Thema?' }
+        ],
+        onError: (err) => {
+            console.error("Chat error:", err)
+            toast.error("Verbindungsfehler. Bitte prüfe deinen API Key.")
+        }
+    })
 
+    const scrollRef = useRef<HTMLDivElement>(null)
+
+    // Audio State
     const [isRecording, setIsRecording] = useState(false)
     const [isTranscribing, setIsTranscribing] = useState(false)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const chunksRef = useRef<Blob[]>([])
+
+    // Auto-scroll
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        }
+    }, [messages])
 
     const startRecording = async () => {
         try {
@@ -97,10 +116,10 @@ export default function InterviewPage() {
             </header>
 
             {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map((m, i) => (
-                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] p-4 rounded-2xl text-sm md:text-base ${m.role === 'user'
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.map((m) => (
+                    <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] sm:max-w-[70%] p-4 rounded-2xl text-sm md:text-base leading-relaxed ${m.role === 'user'
                             ? 'bg-[#303030] text-white rounded-br-none'
                             : 'bg-white shadow-sm text-gray-800 rounded-bl-none'
                             }`}>
@@ -108,6 +127,18 @@ export default function InterviewPage() {
                         </div>
                     </div>
                 ))}
+                {isLoading && messages[messages.length - 1]?.role === 'user' && (
+                    <div className="flex justify-start">
+                        <div className="bg-white/50 p-4 rounded-2xl rounded-bl-none shadow-sm">
+                            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                        </div>
+                    </div>
+                )}
+                {error && (
+                    <div className="text-center text-red-500 text-sm p-4">
+                        Ein Fehler ist aufgetreten. Bitte versuche es später erneut.
+                    </div>
+                )}
             </div>
 
             {/* Floating Input Bar (Bottom) */}
@@ -137,8 +168,8 @@ export default function InterviewPage() {
                             onClick={isRecording ? stopRecording : startRecording}
                             variant="secondary"
                             className={`h-14 w-14 rounded-full shadow-lg shrink-0 transition-colors ${isRecording
-                                    ? 'bg-red-100 hover:bg-red-200 text-red-600'
-                                    : 'bg-white hover:bg-gray-100 text-gray-600'
+                                ? 'bg-red-100 hover:bg-red-200 text-red-600'
+                                : 'bg-white hover:bg-gray-100 text-gray-600'
                                 }`}
                             disabled={isLoading || isTranscribing}
                         >
