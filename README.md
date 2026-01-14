@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SaaS Boilerplate (Kartieren Demokratie)
 
-## Getting Started
+This is a robust SaaS boilerplate built on the Vercel ecosystem, designed for rapid prototyping and scalability.
 
-First, run the development server:
+## Tech Stack (Vercel Optimized)
+
+*   **Framework**: Next.js 15+ (App Router)
+*   **Language**: TypeScript (Strict Mode)
+*   **Styling**: Tailwind CSS + shadcn/ui (New York, Slate)
+*   **Database**: Vercel Postgres (Prisma ORM)
+*   **Auth**: Auth.js v5 (Google & Apple)
+*   **SaaS Features**:
+    *   **Rate Limiting**: Upstash Redis (`@upstash/ratelimit`)
+    *   **File Uploads**: UploadThing
+    *   **Background Jobs**: Inngest
+    *   **AI**: Vercel AI SDK
+
+## MVP Setup Guide
+
+### 1. Vercel Import
+
+1.  Push this repository to GitHub.
+2.  Go to [Vercel Dashboard](https://vercel.com).
+3.  Click "Add New..." -> "Project".
+4.  Import the `kartieren-demokratie` repository.
+5.  **Environment Variables**: Vercel will help auto-fill some, but you need to configure services first.
+
+### 2. Database (Vercel Postgres)
+
+1.  In your Vercel Project, go to the **Storage** tab.
+2.  Click **Connect Store** -> **Postgres** -> **Create New**.
+3.  Choose a region and create.
+4.  Once created, click **"Connect Project"** to automatically pull `POSTGRES_URL` and `POSTGRES_PRISMA_URL` into your Vercel Environment Variables.
+
+### 3. Rate Limiting (Upstash)
+
+1.  Go to the **Storage** tab in Vercel.
+2.  Click **Connect Store** -> **Browse Marketplace** -> **Upstash Redis**.
+3.  Follow the flow to create/link a Redis database.
+4.  This will set `KV_URL` or `UPSTASH_REDIS_REST_URL`. Ensure your `.env` matches the variable names used in `src/lib/rate-limit.ts` (usually `UPSTASH_REDIS_REST_URL` and `_TOKEN`).
+
+### 4. Authentication (Auth.js)
+
+1.  Generate a secret: `npx auth secret` (copy output).
+2.  Add `AUTH_SECRET` to Vercel Environment Variables.
+3.  Configure OAuth providers (Google/Apple) and add client IDs/secrets.
+
+### 5. Deployment
+
+1.  Deploy the project.
+2.  Vercel will detect Next.js and build accordingly.
+3.  Since `prisma` is configured, you may need to run migrations. In Vercel, you can add a build step override or run `npx prisma db push` from your local machine connected to the remote DB.
+
+## Local Development
+
+1.  Copy `.env.example` to `.env`.
+2.  Fill in your keys (you can use `vercel env pull .env` if linked).
+3.  Run development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4.  Start background job worker (Inngest):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx inngest-cli@latest dev
+```
