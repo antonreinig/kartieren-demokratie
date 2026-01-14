@@ -1,15 +1,167 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
+  output   = "../src/generated/client"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("POSTGRES_PRISMA_URL") // uses connection pooling
-  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+enum Role {
+  USER
+  ADMIN
+  GUEST
+}
+
+enum ArtifactType {
+  LINK
+  PDF
+  VIDEO
+}
+
+enum Agreement {
+  AGREE
+  DISAGREE
+  NEUTRAL
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(USER)
+  pseudonym     String?
+  avatarUrl     String?
+
+  accounts  Account[]
+  sessions  Session[]
+  topics    Topic[]    @relation("CreatedTopics")
+  artifacts Artifact[]
+  opinions  Opinion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String?  // For context
+  scope       String?  // Text explaining what is/isn't in scope
+  
+  startsAt    DateTime @default(now())
+  endsAt      DateTime?
+  
+  adminToken  String   @unique // For the secret admin link
+  creatorId   String
+  creator     User     @relation("CreatedTopics", fields: [creatorId], references: [id])
+
+  artifacts   Artifact[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Artifact {
+  id          String       @id @default(cuid())
+  url         String
+  type        ArtifactType
+  title       String?
+  description String?
+  
+  topicId     String
+  topic       Topic        @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  contributorId String?
+  contributor   User?      @relation(fields: [contributorId], references: [id])
+
+  takeaways   Takeaway[]
+  tags        Tag[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Takeaway {
+  id          String   @id @default(cuid())
+  content     String
+  
+  artifactId  String
+  artifact    Artifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  opinions    Opinion[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  label       String
+  
+  artifactId  String
+  artifact    Artifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+}
+
+model Opinion {
+  id          String    @id @default(cuid())
+  
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  takeawayId  String
+  takeaway    Takeaway  @relation(fields: [takeawayId], references: [id], onDelete: Cascade)
+
+  agreement   Agreement?
+  relevant    Boolean   @default(false)
+  note        String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, takeawayId])
 }
