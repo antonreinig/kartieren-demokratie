@@ -37,8 +37,14 @@ export default function TopicWizard() {
         }
 
         setSlugStatus('checking')
-        const available = await checkSlugAvailability(val)
-        setSlugStatus(available ? 'available' : 'taken')
+        try {
+            const available = await checkSlugAvailability(val)
+            setSlugStatus(available ? 'available' : 'taken')
+        } catch (error) {
+            console.error("Failed to check slug:", error)
+            setSlugStatus('taken') // Fail safe
+            toast.error("Verbindungsfehler beim Prüfen des Slugs.")
+        }
     }
 
     const nextStep = () => setStep(s => s + 1)
@@ -121,8 +127,8 @@ export default function TopicWizard() {
                                                 key={opt}
                                                 onClick={() => setFormData(p => ({ ...p, duration: opt }))}
                                                 className={`p-4 rounded-xl border-2 text-left transition-all ${formData.duration === opt
-                                                        ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                                                        : 'border-gray-100 hover:border-gray-300'
+                                                    ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                                                    : 'border-gray-100 hover:border-gray-300'
                                                     }`}
                                             >
                                                 <span className="block font-semibold capitalize">

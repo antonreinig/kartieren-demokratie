@@ -16,10 +16,17 @@ const createTopicSchema = z.object({
 
 export async function checkSlugAvailability(slug: string) {
     if (!slug || slug.length < 3) return false
-    const existing = await prisma.topic.findUnique({
-        where: { slug },
-    })
-    return !existing
+    try {
+        const existing = await prisma.topic.findUnique({
+            where: { slug },
+        })
+        return !existing
+    } catch (e) {
+        console.error("Error checking slug availability:", e)
+        // If DB fails, we return false to prevent creating topics with potentially clashing slugs or just failing.
+        // Returning false shows "taken" which stops the user from proceeding, avoiding broken state.
+        return false
+    }
 }
 
 export async function createTopic(formData: FormData) {
