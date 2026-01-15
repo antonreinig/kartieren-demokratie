@@ -37,11 +37,12 @@ model User {
   pseudonym     String?
   avatarUrl     String?
 
-  accounts  Account[]
-  sessions  Session[]
-  topics    Topic[]    @relation("CreatedTopics")
-  artifacts Artifact[]
-  opinions  Opinion[]
+  accounts     Account[]
+  sessions     Session[]
+  topics       Topic[]    @relation("CreatedTopics")
+  artifacts    Artifact[]
+  opinions     Opinion[]
+  chatSessions ChatSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,7 +101,8 @@ model Topic {
   creatorId   String
   creator     User     @relation("CreatedTopics", fields: [creatorId], references: [id])
 
-  artifacts   Artifact[]
+  artifacts    Artifact[]
+  chatSessions ChatSession[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -165,3 +167,40 @@ model Opinion {
 
   @@unique([userId, takeawayId])
 }
+
+// Chat persistence models
+model ChatSession {
+  id          String   @id @default(cuid())
+  
+  topicId     String
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  
+  // For logged-in users
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // For guest users (stored in localStorage)
+  guestToken  String?
+  
+  messages    ChatMessage[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Ensure unique session per user/topic or guest/topic
+  @@unique([topicId, userId])
+  @@index([topicId, guestToken])
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  
+  sessionId   String
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  role        String   // 'user' or 'assistant'
+  content     String   @db.Text
+  
+  createdAt   DateTime @default(now())
+}
+

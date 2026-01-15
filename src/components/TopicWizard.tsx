@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { checkSlugAvailability, createTopic } from '@/actions/topic'
-import { Loader2, Check, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Loader2, Check, AlertCircle, ArrowRight, ArrowLeft, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
@@ -90,11 +90,11 @@ export default function TopicWizard() {
                                     <h2 className="text-xl font-semibold mb-2">Wie soll der Link heißen?</h2>
                                     <p className="text-muted-foreground mb-4">Wähle einen kurzen, prägnanten Begriff (Slug) für die URL.</p>
                                     <div className="relative">
-                                        <span className="absolute left-3 top-2.5 text-gray-400">kartieren.demokratie.dev/</span>
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">kartieren.demokratie.dev/</span>
                                         <Input
                                             value={formData.slug}
                                             onChange={handleSlugChange}
-                                            className="pl-[198px] font-mono"
+                                            className="pl-[230px] font-mono"
                                             placeholder="mein-thema"
                                             autoFocus
                                         />
@@ -122,7 +122,7 @@ export default function TopicWizard() {
                                     <p className="text-muted-foreground mb-4">Nach Ablauf wird das Ergebnis ausgewertet.</p>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        {['3days', '1week', '2weeks', '1month'].map((opt) => (
+                                        {['3days', '1week', '2weeks'].map((opt) => (
                                             <button
                                                 key={opt}
                                                 onClick={() => setFormData(p => ({ ...p, duration: opt }))}
@@ -135,15 +135,35 @@ export default function TopicWizard() {
                                                     {opt === '3days' && '3 Tage'}
                                                     {opt === '1week' && '1 Woche'}
                                                     {opt === '2weeks' && '2 Wochen'}
-                                                    {opt === '1month' && '1 Monat'}
                                                 </span>
                                             </button>
                                         ))}
+
+                                        {/* Custom Date Option */}
+                                        <div className={`p-4 rounded-xl border-2 text-left transition-all flex flex-col justify-center ${!['3days', '1week', '2weeks'].includes(formData.duration)
+                                            ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                                            : 'border-gray-100 hover:border-gray-300'
+                                            }`}>
+                                            <div className="font-semibold mb-2 flex items-center gap-2">
+                                                <Calendar className="w-4 h-4" />
+                                                Bis Datum
+                                            </div>
+                                            <Input
+                                                type="date"
+                                                min={new Date().toISOString().split('T')[0]}
+                                                className="bg-white"
+                                                onChange={(e) => {
+                                                    const date = e.target.value
+                                                    if (date) setFormData(p => ({ ...p, duration: date }))
+                                                }}
+                                                defaultValue={!['3days', '1week', '2weeks'].includes(formData.duration) ? formData.duration : ''}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex justify-between pt-4">
-                                    <Button variant="ghost" onClick={prevStep} className="rounded-full px-6">Zurück</Button>
-                                    <Button onClick={nextStep} className="rounded-full px-8 py-6 text-lg">
+                                <div className="flex justify-between pt-4 items-center">
+                                    <Button variant="ghost" onClick={prevStep} className="rounded-full">Zurück</Button>
+                                    <Button onClick={nextStep} className="rounded-full py-6 text-lg">
                                         Weiter <ArrowRight className="ml-2 w-5 h-5" />
                                     </Button>
                                 </div>
@@ -197,12 +217,12 @@ export default function TopicWizard() {
                                     </div>
                                 </div>
 
-                                <div className="flex justify-between pt-4">
-                                    <Button variant="ghost" onClick={prevStep} className="rounded-full px-6">Zurück</Button>
+                                <div className="flex justify-between pt-4 items-center">
+                                    <Button variant="ghost" onClick={prevStep} className="rounded-full">Zurück</Button>
                                     <Button
                                         onClick={handleSubmit}
                                         disabled={!formData.title || isSubmitting}
-                                        className="rounded-full px-8 py-6 text-lg bg-black text-white hover:bg-gray-800"
+                                        className="rounded-full py-6 text-lg bg-black text-white hover:bg-gray-800"
                                     >
                                         {isSubmitting ? <Loader2 className="animate-spin" /> : 'Thema erstellen'}
                                     </Button>

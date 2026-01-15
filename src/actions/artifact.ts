@@ -6,6 +6,7 @@ import { z } from "zod"
 
 const artifactSchema = z.object({
     url: z.string().url(),
+    title: z.string().min(1, "Titel wird benötigt"),
     type: z.enum(["LINK", "PDF", "VIDEO"]),
     takeaways: z.array(z.string().min(5)),
     tags: z.array(z.string()),
@@ -15,12 +16,13 @@ const artifactSchema = z.object({
 })
 
 export async function createArtifact(data: z.infer<typeof artifactSchema>) {
-    const { url, type, takeaways, tags, topicId, userId } = data
+    const { url, title, type, takeaways, tags, topicId, userId } = data
 
     // Create Artifact
     const artifact = await prisma.artifact.create({
         data: {
             url,
+            title,
             type,
             topicId,
             contributorId: userId,

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google"; // Using Inter as requested/available
+import { Inter, Gochi_Hand } from "next/font/google"; // Using Inter as requested/available
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
@@ -7,6 +7,12 @@ import { Providers } from "@/components/providers";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-geist-sans", // Aliasing Inter as the primary sans font
+});
+
+const gochiHand = Gochi_Hand({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-gochi-hand",
 });
 
 export const metadata: Metadata = {
@@ -21,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de">
-      <body className={`${inter.variable} font-sans antialiased bg-background text-foreground`}>
+      <body className={`${inter.variable} ${gochiHand.variable} font-sans antialiased bg-background text-foreground`}>
         <Providers>{children}</Providers>
       </body>
     </html>

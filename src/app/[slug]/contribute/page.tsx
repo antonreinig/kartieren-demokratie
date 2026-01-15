@@ -17,7 +17,7 @@ export default async function ContributePage({ params }: { params: Promise<{ slu
     if (firstUser) userId = firstUser.id
 
     return (
-        <div className="min-h-screen bg-[#EAEAEA] p-6">
+        <div className="min-h-screen bg-[#F8CD32] p-6">
             <ContributeForm topicId={topic.id} userId={userId} slug={slug} />
         </div>
     )

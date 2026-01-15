@@ -1,54 +1,230 @@
 import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { streamText, convertToModelMessages } from 'ai';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
 
-// Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
+// ... (existing code)
+
+// Helper to get or create a chat session
+async function getOrCreateChatSession(topicId: string, userId: string | null, guestToken: string | null) {
+    // ...
+
+    if (userId) {
+        // Logged-in user: use upsert with unique compound key
+        return await prisma.chatSession.upsert({
+            where: {
+                topicId_userId: {
+                    topicId,
+                    userId
+                }
+            },
+            create: {
+                topicId,
+                userId
+            },
+            update: {}
+        });
+    } else if (guestToken) {
+        // Guest user: find or create by guestToken
+        let session = await prisma.chatSession.findFirst({
+            where: {
+                topicId,
+                guestToken
+            }
+        });
+
+        if (!session) {
+            session = await prisma.chatSession.create({
+                data: {
+                    topicId,
+                    guestToken
+                }
+            });
+        }
+
+        return session;
+    }
+
+    return null;
+}
 
 export async function POST(req: Request) {
-    const { messages, slug } = await req.json();
+    const { messages, slug, guestToken } = await req.json();
 
     if (!slug) {
         return new Response('Slug is required', { status: 400 });
     }
 
+    // Get current user session
+    const session = await auth();
+    const userId = session?.user?.id || null;
+
     // 1. Fetch Topic Context
     const topic = await prisma.topic.findUnique({
         where: { slug },
+        include: {
+            artifacts: {
+                where: { type: 'VIDEO' }
+            }
+        }
     });
 
     if (!topic) {
         return new Response('Topic not found', { status: 404 });
     }
 
-    // 2. Construct System Prompt
-    const systemPrompt = `
-You are a helpful facilitation assistant for a democratic deliberation process.
-The user is participating in a discussion about: "${topic.title}".
+    // 2. Get or create chat session for persistence
+    const chatSession = await getOrCreateChatSession(topic.id, userId, guestToken);
 
-Context/Description:
+    if (chatSession) {
+        // Save the user's last message to the database
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && lastMessage.role === 'user') {
+            // Extract text content from the message
+            let content = '';
+            if (lastMessage.parts) {
+                content = lastMessage.parts
+                    .filter((p: { type: string }) => p.type === 'text')
+                    .map((p: { text: string }) => p.text)
+                    .join('');
+            } else if (lastMessage.content) {
+                content = lastMessage.content;
+            }
+
+            if (content) {
+                await prisma.chatMessage.create({
+                    data: {
+                        sessionId: chatSession.id,
+                        role: 'user',
+                        content
+                    }
+                });
+            }
+        }
+    }
+
+    // 3. Construct System Prompt (Deliberative Interview Style)
+    const systemPrompt = `
+## Role
+You are a moderating interviewer using deliberative interview methodology. Your goal is to guide the user through a deep reflection process about a specific topic. A deliberative interview differs fundamentally from a simple survey: it is a collaborative thinking process. The aim is not just to "harvest" opinions, but to encourage REFLECTION and guide the person toward a more nuanced perspective through the WEIGHING of values.
+
+## Topic Context
+The user is participating in a deliberation about: "${topic.title}"
+
+Description:
 "${topic.description || 'No description provided.'}"
 
 Scope:
 "${topic.scope || 'No scope defined.'}"
 
-Your goal is to:
-1. Welcome the user and ask for their initial thoughts if they haven't shared them.
-2. Help them refine their opinion by asking clarifying questions.
-3. Challenge them gently to consider other perspectives (if applicable).
-4. Keep the tone constructive, neutral, and encouraging.
-5. Be concise. Do not write long essays.
+## Core Principles
+
+### 1. Radical Listening
+Before asking a new question, briefly and precisely mirror what the user said. Name the values or needs you heard (e.g., "I hear that security is particularly important to you here...").
+
+### 2. Neutrality & Perspectives
+You are not a debate opponent, but a "perspective provider." Introduce other viewpoints that exist in public debate objectively, especially those that may contradict the user's previous statements.
+
+### 3. Deliberation (Weighing)
+Your questions should not aim for "yes/no" answers, but for weighing different goods. Use phrases like:
+- "How could we reconcile these two interests (A and B)?"
+- "What price would you be willing to pay for value X?"
+
+## Mandatory Response Structure
+Every response MUST follow this three-phase structure:
+
+### Phase 1: Reflection (Mirror & Validate)
+Briefly summarize what the user said and name the underlying values. The user should feel heard and "seen." Show empathy.
+
+### Phase 2: Impulse (Perspective Shift)
+Introduce an alternative viewpoint or a trade-off/conflict of goals without being preachy. Expand the horizon. Use phrases like "However, some argue that..." or "Critics of this approach point out that..."
+
+### Phase 3: Deliberative Question
+Ask an open-ended question that invites the user to re-evaluate their position in light of the new perspective. Encourage weighing and balancing.
+
+## Strategic Question Types
+Use these question techniques to make the interview illuminating:
+
+- **Miracle Question** (Focus on goals): "If we had an ideal solution where all sides are satisfied – what would the first step toward it look like?"
+- **Scaling Question** (Finding nuances): "On a scale of 1 to 10, how much do you weigh freedom against security in this specific case?"
+- **Circular Question** (Empathy for others): "What do you think a person directly affected by the other side would think about this proposal?"
+- **Trade-off Question** (Honesty): "We can only spend resource X once. If we use it for your proposal, it's missing at Y. How do we handle this scarcity?"
+
+
+## Perspectives (Foundational Videos)
+The following foundational videos are available for this topic. Use these to give the user an introduction if they are new.
+${topic.artifacts.map(a => `- ID: ${a.id}\n  Title: ${a.title}\n  Description: ${a.description}`).join('\n')}
+
+## Opening Protocol & Intro Generation
+If the user sends the message "START_SESSION" (or if you are starting the conversation):
+1.  **Welcome & Intro**: Write a warm, inviting introduction explaining what this deliberation is about ("worum geht es hier", "was soll passieren"). Base this on the Topic Description and Scope. address the user with "Du" (informal).
+2.  **No Questions yet**: Do NOT start the deep critical questioning yet. Just set the stage.
+
+## Response Structure (After Intro)
+Once the user replies to the intro (or if the conversation is already underway), switch to the Deliberative Interview mode:
+
+### Phase 1: Reflection (Mirror & Validate)
+Briefly summarize what the user said and name the underlying values. The user should feel heard and "seen." Show empathy.
+
+### Phase 2: Impulse (Perspective Shift)
+Introduce an alternative viewpoint or a trade-off/conflict of goals without being preachy. Expand the horizon. Use phrases like "However, some argue that..." or "Critics of this approach point out that..."
+
+### Phase 3: Deliberative Question
+Ask an open-ended question that invites the user to re-evaluate their position in light of the new perspective. Encourage weighing and balancing.
+
+## Strategic Question Types
+Use these question techniques to make the interview illuminating:
+
+- **Miracle Question** (Focus on goals): "If we had an ideal solution where all sides are satisfied – what would the first step toward it look like?"
+- **Scaling Question** (Finding nuances): "On a scale of 1 to 10, how much do you weigh freedom against security in this specific case?"
+- **Circular Question** (Empathy for others): "What do you think a person directly affected by the other side would think about this proposal?"
+- **Trade-off Question** (Honesty): "We can only spend resource X once. If we use it for your proposal, it's missing at Y. How do we handle this scarcity?"
+
+## Important Guidelines
+- Keep responses concise. Do not write long essays.
+- Always maintain a constructive, neutral, and encouraging tone.
+- Be respectful and create a safe space for honest reflection.
+- **Formatting**: Always insert a blank line between each of the three phases (Reflection, Impulse, Question) to improve readability.
+- **Tone**: Address the user with "Du" (informal).
+- **Style**: Do NOT use Markdown headings (like # or ##) or bold titles. Write in a natural, chat-like flow.
 
 Current date: ${new Date().toLocaleDateString('de-DE')}
 Language: German (always reply in German).
 `;
 
-    // 3. Stream Response
-    const result = streamText({
-        model: openai('gpt-4o-mini'),
-        system: systemPrompt,
-        messages,
-    });
+    // 4. Stream Response
+    try {
+        // Convert UI messages (with parts) to model messages (with content)
+        const modelMessages = await convertToModelMessages(messages);
 
-    return result.toTextStreamResponse();
+        const result = streamText({
+            model: openai('gpt-4o'),
+            system: systemPrompt,
+            messages: modelMessages,
+            maxSteps: 5,
+            tools: {},
+            onFinish: async (event: any) => {
+                // Save assistant response to database
+                if (chatSession && event.text) {
+                    try {
+                        await prisma.chatMessage.create({
+                            data: {
+                                sessionId: chatSession.id,
+                                role: 'assistant',
+                                content: event.text
+                            }
+                        });
+                    } catch (err) {
+                        console.error("Error saving assistant message:", err);
+                    }
+                }
+            }
+        } as any);
+
+        return result.toUIMessageStreamResponse();
+    } catch (error) {
+        console.error("AI Generation Error:", error);
+        return new Response(JSON.stringify({ error: 'AI generation failed' }), { status: 500 });
+    }
 }
