@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Link as LinkIcon, Youtube, FileText, ArrowUpRight, Search, Play } from "lucide-react";
+import { Plus, Link as LinkIcon, Youtube, FileText, ArrowUpRight, Search, Play, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
@@ -53,15 +53,22 @@ const SectionHeader = ({ label }: { label: string }) => (
     </div>
 );
 
-const VideoCard = ({ artifact }: { artifact: Artifact }) => {
+const VideoCard = ({ artifact, onPlay }: { artifact: Artifact, onPlay: (videoId: string) => void }) => {
     const videoId = getYouTubeId(artifact.url);
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
+
+    const handleClick = (e: React.MouseEvent) => {
+        if (videoId) {
+            e.preventDefault();
+            onPlay(videoId);
+        }
+    }
 
     return (
         <Card className="group flex flex-col h-full bg-black text-white border-none rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 p-0">
             {/* Thumbnail Area - Force no top spacing */}
             <div className="relative w-full aspect-video bg-zinc-900">
-                <a href={artifact.url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                <a href={artifact.url} onClick={handleClick} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
                     {thumbnailUrl ? (
                         <img
                             src={thumbnailUrl}
@@ -85,7 +92,7 @@ const VideoCard = ({ artifact }: { artifact: Artifact }) => {
             {/* Content */}
             <div className="p-4 pt-3 flex flex-col flex-1">
                 <h4 className="font-bold text-lg leading-snug mb-2 group-hover:text-[#F8CD32] transition-colors line-clamp-2">
-                    <a href={artifact.url} target="_blank" rel="noopener noreferrer">
+                    <a href={artifact.url} onClick={handleClick} target="_blank" rel="noopener noreferrer">
                         {artifact.title || "Ohne Titel"}
                     </a>
                 </h4>
@@ -93,8 +100,8 @@ const VideoCard = ({ artifact }: { artifact: Artifact }) => {
                 {artifact.takeaways.length > 0 && (
                     <div className="mb-4 space-y-1.5 ">
                         {artifact.takeaways.slice(0, 2).map((t) => (
-                            <div key={t.id} className="flex gap-2 items-start text-sm text-zinc-400 line-clamp-2">
-                                <span className="text-[#F8CD32] mt-1.5 shrink-0">•</span>
+                            <div key={t.id} className="flex gap-2 items-baseline text-sm text-zinc-400 line-clamp-2">
+                                <span className="text-[#F8CD32] shrink-0">•</span>
                                 <span className="leading-relaxed">{t.content}</span>
                             </div>
                         ))}
@@ -152,8 +159,8 @@ const CompactCard = ({ artifact, type }: { artifact: Artifact, type: 'pdf' | 'li
             {artifact.takeaways.length > 0 && (
                 <div className="mb-4 space-y-1.5 flex-1">
                     {artifact.takeaways.slice(0, 3).map((t) => (
-                        <div key={t.id} className="flex gap-2 items-start text-sm text-zinc-300 line-clamp-3">
-                            <span className="text-[#F8CD32] mt-1.5 shrink-0">•</span>
+                        <div key={t.id} className="flex gap-2 items-baseline text-sm text-zinc-300 line-clamp-3">
+                            <span className="text-[#F8CD32] shrink-0">•</span>
                             <span className="leading-relaxed">{t.content}</span>
                         </div>
                     ))}
@@ -176,6 +183,7 @@ const CompactCard = ({ artifact, type }: { artifact: Artifact, type: 'pdf' | 'li
 export function MediathekView({ artifacts, slug }: MediathekViewProps) {
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
 
     // Extract unique categories
     const categories = useMemo(() => {
@@ -239,7 +247,36 @@ export function MediathekView({ artifacts, slug }: MediathekViewProps) {
     }
 
     return (
-        <div className="h-full w-full overflow-y-auto p-6 bg-[#F8CD32]">
+        <div className="h-full w-full overflow-y-auto p-6 bg-[#F8CD32] relative">
+
+            {/* YouTube Modal Overlay */}
+            {selectedVideoId && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                    onClick={() => setSelectedVideoId(null)}
+                >
+                    <div className="relative w-full max-w-4xl" onClick={e => e.stopPropagation()}>
+                        {/* Close Button - Outside Top Right */}
+                        <button
+                            onClick={() => setSelectedVideoId(null)}
+                            className="absolute -top-12 right-0 md:-right-12 md:top-0 p-2 text-white/70 hover:text-white transition-colors z-50"
+                        >
+                            <X className="w-8 h-8" />
+                        </button>
+
+                        <div className="w-full aspect-video bg-black rounded-xl shadow-2xl overflow-hidden">
+                            <iframe
+                                src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1`}
+                                title="YouTube video player"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                                className="w-full h-full border-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="max-w-6xl mx-auto pb-20">
 
                 {/* Search Bar - Big & Rounded */}
@@ -304,7 +341,11 @@ export function MediathekView({ artifacts, slug }: MediathekViewProps) {
                             <SectionHeader label="Videos" />
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {groupedArtifacts.videos.map(artifact => (
-                                    <VideoCard key={artifact.id} artifact={artifact} />
+                                    <VideoCard
+                                        key={artifact.id}
+                                        artifact={artifact}
+                                        onPlay={setSelectedVideoId}
+                                    />
                                 ))}
                             </div>
                         </section>

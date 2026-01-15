@@ -11,10 +11,10 @@ import { Loader2, Check, AlertCircle, ArrowRight, ArrowLeft, Calendar } from 'lu
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
-export default function TopicWizard() {
+export default function TopicWizard({ initialSlug = '' }: { initialSlug?: string }) {
     const [step, setStep] = useState(1)
     const [formData, setFormData] = useState({
-        slug: '',
+        slug: initialSlug,
         duration: '1week',
         title: '',
         scope: '',

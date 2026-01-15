@@ -15,3 +15,18 @@ export async function getTopicBySlug(slug: string) {
         }
     })
 }
+
+export async function getAllTopics() {
+    return await prisma.topic.findMany({
+        select: {
+            slug: true,
+            title: true,
+            _count: {
+                select: { artifacts: true }
+            }
+        },
+        orderBy: {
+            createdAt: 'desc'
+        }
+    })
+}
