@@ -22,7 +22,6 @@ function getMessageText(message: { parts?: MessagePart[]; content?: string }): s
     }
 
     if (!message.parts || !Array.isArray(message.parts)) {
-        console.log('getMessageText: no parts found', message)
         return ''
     }
 
@@ -31,7 +30,7 @@ function getMessageText(message: { parts?: MessagePart[]; content?: string }): s
     const text = textParts.map(part => part.text).join('')
 
     if (!text && message.parts.length > 0) {
-        console.log('getMessageText: parts found but no text:', message.parts)
+
     }
 
     return text
@@ -62,7 +61,7 @@ export default function InterviewPage() {
                     if (res.ok) {
                         const data = await res.json()
                         if (data.messages && Array.isArray(data.messages)) {
-                            console.log("Loaded history:", data.messages.length, "messages")
+                            // History loaded
                             setInitialMessages(data.messages)
                         }
                     }
@@ -125,7 +124,7 @@ function InterviewChat({
         id: `interview-${slug}`,
         messages: initialMessages,
         onFinish: ({ message }) => {
-            console.log("Chat finished:", message);
+            // Chat finished
         },
         onError: (err) => {
             console.error("Chat error:", err)
@@ -146,7 +145,7 @@ function InterviewChat({
             return;
         }
 
-        console.log("Submitting message programmatically...", { slug, text });
+
 
         try {
             await sendMessage({ text })
@@ -170,7 +169,7 @@ function InterviewChat({
         const currentInput = input
         setInput('') // Clear input immediately
 
-        console.log("Sending message...", { slug, input: currentInput });
+
 
         try {
             await sendMessage({ text: currentInput })
