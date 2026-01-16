@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Link as LinkIcon, Youtube, FileText, ArrowUpRight, Search, Play, X } from "lucide-react";
+import { Plus, Link as LinkIcon, Youtube, FileText, ArrowUpRight, Play, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
@@ -13,9 +13,13 @@ type MediaType = "all" | "link" | "youtube" | "pdf";
 interface Artifact {
     id: string;
     title?: string | null;
+    description?: string | null;
     url: string;
     tags: { id: string; label: string }[];
     takeaways: { id: string; content: string }[];
+    evidenceLevel?: string | null;
+    mainSource?: string | null;
+    contentCategories?: any;
 }
 
 interface MediathekViewProps {
@@ -53,7 +57,7 @@ const SectionHeader = ({ label }: { label: string }) => (
     </div>
 );
 
-const VideoCard = ({ artifact, onPlay }: { artifact: Artifact, onPlay: (videoId: string) => void }) => {
+const VideoCard = ({ artifact, onPlay, slug }: { artifact: Artifact, onPlay: (videoId: string) => void, slug: string }) => {
     const videoId = getYouTubeId(artifact.url);
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
 
@@ -66,7 +70,11 @@ const VideoCard = ({ artifact, onPlay }: { artifact: Artifact, onPlay: (videoId:
 
     return (
         <Card className="group flex flex-col h-full bg-black text-white border-none rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 p-0">
-            {/* Thumbnail Area - Force no top spacing */}
+            {/* Thumbnail Area - Link to Detail Page now? Or keep playing? User said "button at the bottom". 
+                Let's keep thumbnail playing for now, or maybe link to detail? 
+                Actually, usually "Perspectives" implies going deeper. 
+                Let's make the Title link to EXTERNAL (as before) but add the button for INTERNAL.
+            */}
             <div className="relative w-full aspect-video bg-zinc-900">
                 <a href={artifact.url} onClick={handleClick} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
                     {thumbnailUrl ? (
@@ -97,23 +105,28 @@ const VideoCard = ({ artifact, onPlay }: { artifact: Artifact, onPlay: (videoId:
                     </a>
                 </h4>
 
-                {artifact.takeaways.length > 0 && (
-                    <div className="mb-4 space-y-1.5 ">
-                        {artifact.takeaways.slice(0, 2).map((t) => (
-                            <div key={t.id} className="flex gap-2 items-baseline text-sm text-zinc-400 line-clamp-2">
-                                <span className="text-[#F8CD32] shrink-0">•</span>
-                                <span className="leading-relaxed">{t.content}</span>
-                            </div>
-                        ))}
-                    </div>
+                {/* Description - new requirement */}
+                {artifact.description && (
+                    <p className="text-sm text-zinc-400 mb-3 line-clamp-2 leading-relaxed">
+                        {artifact.description}
+                    </p>
                 )}
 
-                <div className="mt-auto pt-3 flex flex-wrap gap-2">
+                {/* Tags (moved up slightly) */}
+                <div className="flex flex-wrap gap-2 mb-4">
                     {artifact.tags.map((tag) => (
                         <span key={tag.id} className="px-2 py-0.5 bg-white/10 rounded-md text-[10px] font-bold uppercase tracking-wider text-zinc-300">
                             {tag.label === "Grundlagenforschung" ? "FORSCHUNG" : tag.label}
                         </span>
                     ))}
+                </div>
+
+                <div className="mt-auto grid gap-2">
+                    <Link href={`/${slug}/perspective/${artifact.id}`} className="block w-full">
+                        <Button variant="outline" className="w-full border-white/20 hover:bg-white hover:text-black hover:border-white text-xs uppercase tracking-wider font-bold h-9 bg-transparent text-zinc-300">
+                            Mehr erfahren
+                        </Button>
+                    </Link>
                 </div>
             </div>
         </Card>
@@ -200,14 +213,8 @@ export function MediathekView({ artifacts, slug }: MediathekViewProps) {
     // Filter and Group artifacts
     const groupedArtifacts = useMemo(() => {
         const filtered = artifacts.filter((artifact) => {
-            // Filter by search query
-            if (searchQuery) {
-                const query = searchQuery.toLowerCase();
-                const matchesTitle = artifact.title?.toLowerCase().includes(query);
-                const matchesUrl = artifact.url.toLowerCase().includes(query);
-                const matchesTag = artifact.tags.some(t => t.label.toLowerCase().includes(query));
-                if (!matchesTitle && !matchesUrl && !matchesTag) return false;
-            }
+            // Filter by search query - REMOVED as per request to turn into URL input only
+            // if (searchQuery) ...
 
             // Filter by category
             if (selectedCategory) {
@@ -279,27 +286,47 @@ export function MediathekView({ artifacts, slug }: MediathekViewProps) {
 
             <div className="max-w-6xl mx-auto pb-20">
 
-                {/* Search Bar - Big & Rounded */}
+                {/* Input Area + Button */}
                 <div className="flex justify-center mb-10">
-                    <div className="w-full max-w-2xl relative">
-                        <input
-                            type="text"
-                            placeholder="Suchen..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full py-4 pl-14 pr-6 rounded-full bg-white border-none shadow-sm text-lg font-medium placeholder:text-black/30 text-black outline-none focus:ring-2 focus:ring-black/10 transition-shadow"
-                        />
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-black/40" />
+                    <div className="flex items-center gap-2 w-full max-w-2xl">
+                        <div className="relative flex-1">
+                            <input
+                                type="text"
+                                placeholder="URL zu interessanter Quelle eingeben"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full py-3.5 pl-12 pr-6 rounded-full bg-white border-none shadow-sm text-lg font-medium placeholder:text-black/40 text-black outline-none focus:ring-2 focus:ring-black/10 transition-shadow"
+                            />
+                            <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/40" />
+                        </div>
+
+                        {/* Add Button - Round & Black */}
+                        {(() => {
+                            const isUrl = /^(https?:\/\/[^\s]+)$/.test(searchQuery);
+                            return (
+                                <Link
+                                    href={isUrl
+                                        ? `/${slug}/contribute/analyze?url=${encodeURIComponent(searchQuery)}`
+                                        : `/${slug}/contribute`
+                                    }
+                                    className="shrink-0"
+                                >
+                                    <Button className="h-[54px] w-[54px] p-0 rounded-full bg-black text-white hover:bg-black/90 shadow-xl transition-transform hover:scale-105 active:scale-95 flex items-center justify-center">
+                                        <Plus className="w-6 h-6" />
+                                    </Button>
+                                </Link>
+                            );
+                        })()}
                     </div>
                 </div>
 
-                {/* Filter & Action */}
+                {/* Filters Row */}
                 <div className="mb-10">
-                    <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6">
+                    <div className="flex justify-center">
                         {/* Category Filters */}
-                        <div className="space-y-4 flex-1">
+                        <div className="space-y-4">
                             {categories.length > 0 && (
-                                <div className="flex flex-wrap">
+                                <div className="flex flex-wrap shadow-sm rounded-sm overflow-hidden">
                                     {categories.map((category, index) => (
                                         <button
                                             key={category}
@@ -307,12 +334,10 @@ export function MediathekView({ artifacts, slug }: MediathekViewProps) {
                                                 selectedCategory === category ? null : category
                                             )}
                                             className={cn(
-                                                "px-4 py-2 text-sm font-bold tracking-wide transition-all uppercase border-r border-black/10 last:border-0",
+                                                "px-5 py-2.5 text-sm font-bold tracking-wide transition-all uppercase border-r border-black/5 last:border-0",
                                                 selectedCategory === category
                                                     ? "bg-black text-white"
-                                                    : "bg-[#E5BC2E] text-black hover:bg-[#D9B229]",
-                                                index === 0 && "rounded-l-sm",
-                                                index === categories.length - 1 && "rounded-r-sm"
+                                                    : "bg-[#E5BC2E] text-black hover:bg-[#D9B229]"
                                             )}
                                         >
                                             {category.toUpperCase()}
@@ -321,14 +346,6 @@ export function MediathekView({ artifacts, slug }: MediathekViewProps) {
                                 </div>
                             )}
                         </div>
-
-                        {/* Add New Button */}
-                        <Link href={`/${slug}/contribute`} className="shrink-0">
-                            <Button className="w-full sm:w-auto px-8 py-6 text-sm font-bold tracking-wide rounded-full bg-black text-white hover:bg-black/90 shadow-xl uppercase transition-transform hover:scale-105 active:scale-95">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Perspektive hinzufügen
-                            </Button>
-                        </Link>
                     </div>
                 </div>
 
@@ -345,6 +362,7 @@ export function MediathekView({ artifacts, slug }: MediathekViewProps) {
                                         key={artifact.id}
                                         artifact={artifact}
                                         onPlay={setSelectedVideoId}
+                                        slug={slug}
                                     />
                                 ))}
                             </div>

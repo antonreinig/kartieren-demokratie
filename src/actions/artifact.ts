@@ -7,25 +7,33 @@ import { z } from "zod"
 const artifactSchema = z.object({
     url: z.string().url(),
     title: z.string().min(1, "Titel wird benötigt"),
+    description: z.string().optional(),
     type: z.enum(["LINK", "PDF", "VIDEO"]),
     takeaways: z.array(z.string().min(5)),
     tags: z.array(z.string()),
     topicId: z.string(),
     // For now assuming anonymous or guest user
     userId: z.string(),
+    evidenceLevel: z.string().optional(),
+    mainSource: z.string().optional(),
+    contentCategories: z.record(z.string(), z.number()).optional(),
 })
 
 export async function createArtifact(data: z.infer<typeof artifactSchema>) {
-    const { url, title, type, takeaways, tags, topicId, userId } = data
+    const { url, title, description, type, takeaways, tags, topicId, userId, evidenceLevel, mainSource, contentCategories } = data
 
     // Create Artifact
     const artifact = await prisma.artifact.create({
         data: {
             url,
             title,
+            description,
             type,
             topicId,
             contributorId: userId,
+            evidenceLevel,
+            mainSource,
+            contentCategories: contentCategories as any, // Cast for Prisma JSON
             takeaways: {
                 create: takeaways.map(t => ({ content: t }))
             },

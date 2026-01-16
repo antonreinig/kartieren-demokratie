@@ -11,13 +11,36 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
-export default function ContributeForm({ topicId, userId, slug }: { topicId: string, userId: string, slug: string }) {
-    const [url, setUrl] = useState('')
-    const [title, setTitle] = useState('')
+export interface ContributeInitialData {
+    url?: string;
+    title?: string;
+    description?: string;
+    takeaways?: string[];
+    category?: string;
+    evidenceLevel?: string;
+    mainSource?: string;
+    contentCategories?: Record<string, number>;
+}
+
+export default function ContributeForm({ topicId, userId, slug, initialData }: {
+    topicId: string,
+    userId: string,
+    slug: string,
+    initialData?: ContributeInitialData
+}) {
+    const [url, setUrl] = useState(initialData?.url || '')
+    const [title, setTitle] = useState(initialData?.title || '')
+    const [description, setDescription] = useState(initialData?.description || '')
     const [takeawayInput, setTakeawayInput] = useState('')
-    const [takeaways, setTakeaways] = useState<string[]>([])
+    const [takeaways, setTakeaways] = useState<string[]>(initialData?.takeaways || [])
     // Single select for category to match the requested behavior
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(initialData?.category || null)
+
+    // New Dashboard Data (Hidden state, passed through)
+    const [evidenceLevel] = useState(initialData?.evidenceLevel)
+    const [mainSource] = useState(initialData?.mainSource)
+    const [contentCategories] = useState(initialData?.contentCategories)
+
     const [isSubmitting, setIsSubmitting] = useState(false)
     const router = useRouter()
 
@@ -43,6 +66,7 @@ export default function ContributeForm({ topicId, userId, slug }: { topicId: str
     const handleSubmit = async () => {
         if (!url) return toast.error("Bitte eine URL eingeben.")
         if (!title) return toast.error("Bitte einen Titel eingeben.")
+        // Description is optional but recommended
         if (takeaways.length === 0) return toast.error("Bitte mindestens eine Erkenntnis hinzufügen.")
         if (!selectedCategory) return toast.error("Bitte eine Kategorie wählen.")
 
@@ -51,11 +75,15 @@ export default function ContributeForm({ topicId, userId, slug }: { topicId: str
         const res = await createArtifact({
             url,
             title,
+            description,
             type: getMediaType(url),
             takeaways,
             tags: [selectedCategory], // Send as array for Prisma
             topicId,
-            userId
+            userId,
+            evidenceLevel,
+            mainSource,
+            contentCategories
         })
 
         if (res.success) {
@@ -107,6 +135,16 @@ export default function ContributeForm({ topicId, userId, slug }: { topicId: str
                             onChange={e => setTitle(e.target.value)}
                             placeholder="Titel des Beitrags"
                             className="bg-gray-50 border-gray-200 focus:ring-black focus:border-black rounded-xl py-6 font-medium"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold mb-2 uppercase tracking-wide text-zinc-500">Beschreibung</label>
+                        <Input
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="Kurze Beschreibung des Inhalts (ein Satz)..."
+                            className="bg-gray-50 border-gray-200 focus:ring-black focus:border-black rounded-xl py-6"
                         />
                     </div>
                 </div>

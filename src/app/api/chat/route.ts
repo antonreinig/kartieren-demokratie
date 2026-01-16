@@ -242,7 +242,7 @@ Language: German (always reply in German).
         const modelMessages = await convertToModelMessages(normalizedMessages);
 
         const result = streamText({
-            model: openai('gpt-4o'),
+            model: openai('gpt-5.1'),
             system: systemPrompt,
             messages: modelMessages,
             // No tools - using marker-based approach instead
