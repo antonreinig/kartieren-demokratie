@@ -60,12 +60,15 @@ export async function POST(req: Request) {
     const session = await auth();
     const userId = session?.user?.id || null;
 
-    // 1. Fetch Topic Context
+    // 1. Fetch Topic Context (including all artifacts with takeaways and tags for content suggestions)
     const topic = await prisma.topic.findUnique({
         where: { slug },
         include: {
             artifacts: {
-                where: { type: 'VIDEO' }
+                include: {
+                    takeaways: true,
+                    tags: true
+                }
             }
         }
     });
@@ -158,8 +161,13 @@ ${topic.artifacts.map(a => `- ID: ${a.id}\n  Title: ${a.title}\n  Description: $
 
 ## Opening Protocol & Intro Generation
 If the user sends the message "START_SESSION" (or if you are starting the conversation):
-1.  **Welcome & Intro**: Write a warm, inviting introduction explaining what this deliberation is about ("worum geht es hier", "was soll passieren"). Base this on the Topic Description and Scope. address the user with "Du" (informal).
-2.  **No Questions yet**: Do NOT start the deep critical questioning yet. Just set the stage.
+1.  **Welcome & Intro**: Write a warm, inviting introduction explaining what this deliberation is about ("worum geht es hier", "was soll passieren"). Base this on the Topic Description and Scope. Address the user with "Du" (informal).
+2.  **Role-Clarifying Question**: End your intro with a question that helps understand the user's personal perspective and role in this topic. This is crucial for a meaningful deliberation. Examples:
+    - For "Wehrdienst": "Bist du selbst betroffen – hast du bereits gedient, bist du im wehrpflichtigen Alter, oder betrachtest du das Thema eher aus der Distanz?"
+    - For "Mediennutzung": "Welche Rolle spielst du in diesem Thema – bist du Elternteil, Lehrer*in, oder selbst jemand, der mit Bildschirmzeit kämpft?"
+    - Adapt the question to the specific topic context to understand the user's stake, experience, or perspective.
+3.  **No deep deliberation yet**: Do NOT start the critical questioning or deliberative interview yet. Just set the stage and understand who you're talking to.
+
 
 ## Response Structure (After Intro)
 Once the user replies to the intro (or if the conversation is already underway), switch to the Deliberative Interview mode:
@@ -181,13 +189,34 @@ Use these question techniques to make the interview illuminating:
 - **Circular Question** (Empathy for others): "What do you think a person directly affected by the other side would think about this proposal?"
 - **Trade-off Question** (Honesty): "We can only spend resource X once. If we use it for your proposal, it's missing at Y. How do we handle this scarcity?"
 
+## Content Suggestions (WICHTIG!)
+Wenn du dem Nutzer Inhalte (Videos, Artikel, Studien) empfehlen möchtest, verwende den folgenden Marker:
+
+[[CONTENT:id1,id2]]
+
+Beispiel: "Dazu habe ich einen passenden Inhalt für dich: [[CONTENT:${topic.artifacts[0]?.id || 'example-id'}]]"
+
+Verfügbare Inhalte (nutze die IDs aus dieser Liste):
+${topic.artifacts.map(a => {
+        const mediaType = a.url.includes('youtube.com') || a.url.includes('youtu.be') ? 'VIDEO'
+            : a.url.endsWith('.pdf') ? 'PDF'
+                : 'ARTIKEL/LINK';
+        return `- ID: ${a.id} | TYP: ${mediaType} | ${a.tags[0]?.label || 'Sonstiges'} | ${a.title}`;
+    }).join('\n')}
+
+**Regeln für Content-Empfehlungen:**
+- Verwende IMMER den [[CONTENT:...]] Marker, NIEMALS URLs oder Markdown-Links
+- Maximal 1-2 Inhalte pro Nachricht empfehlen
+- Schreibe zuerst einen kurzen Einleitungssatz, dann den Marker
+- Empfehle Inhalte wenn: User nach Videos/Artikeln fragt, Wissenslücken erkennbar sind, oder User Interesse an Erfahrungsberichten zeigt
+
 ## Important Guidelines
 - Keep responses concise. Do not write long essays.
 - Always maintain a constructive, neutral, and encouraging tone.
 - Be respectful and create a safe space for honest reflection.
 - **Formatting**: Always insert a blank line between each of the three phases (Reflection, Impulse, Question) to improve readability.
 - **Tone**: Address the user with "Du" (informal).
-- **Style**: Do NOT use Markdown headings (like # or ##) or bold titles. Write in a natural, chat-like flow.
+- **Style**: Do NOT use Markdown headings (like # or ##), bold titles, or any markdown links. Write in a natural, chat-like flow.
 
 Current date: ${new Date().toLocaleDateString('de-DE')}
 Language: German (always reply in German).
@@ -195,15 +224,28 @@ Language: German (always reply in German).
 
     // 4. Stream Response
     try {
+        // Normalize messages to ensure they have the parts array expected by AI SDK v6
+        const normalizedMessages = messages.map((msg: any) => {
+            if (msg.parts && Array.isArray(msg.parts)) {
+                return msg; // Already in correct format
+            }
+            // Convert simple {role, content} format to parts format
+            return {
+                id: msg.id || crypto.randomUUID(),
+                role: msg.role,
+                parts: [{ type: 'text', text: msg.content || '' }],
+                content: msg.content || ''
+            };
+        });
+
         // Convert UI messages (with parts) to model messages (with content)
-        const modelMessages = await convertToModelMessages(messages);
+        const modelMessages = await convertToModelMessages(normalizedMessages);
 
         const result = streamText({
             model: openai('gpt-4o'),
             system: systemPrompt,
             messages: modelMessages,
-            maxSteps: 5,
-            tools: {},
+            // No tools - using marker-based approach instead
             onFinish: async (event: any) => {
                 // Save assistant response to database
                 if (chatSession && event.text) {
@@ -220,11 +262,16 @@ Language: German (always reply in German).
                     }
                 }
             }
-        } as any);
+        });
 
         return result.toUIMessageStreamResponse();
-    } catch (error) {
+    } catch (error: any) {
         console.error("AI Generation Error:", error);
-        return new Response(JSON.stringify({ error: 'AI generation failed' }), { status: 500 });
+        console.error("Error message:", error?.message);
+        console.error("Error stack:", error?.stack);
+        return new Response(JSON.stringify({
+            error: 'AI generation failed',
+            details: error?.message || 'Unknown error'
+        }), { status: 500 });
     }
 }

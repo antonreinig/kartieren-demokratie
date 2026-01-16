@@ -5,7 +5,9 @@ import { Menu, MessageSquare, MonitorPlay, LogIn, LogOut, Trash2 } from "lucide-
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getGradientStyle } from "@/lib/avatar-gradient";
+import { getGuestToken, resetGuestToken } from "@/lib/guest-token";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { deleteGuestAccount } from "@/actions/guest";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -158,14 +160,14 @@ export function TopicAppShell({ topic, slug, guestToken, chatView, mediathekView
                                     className="text-red-600 focus:text-red-600 focus:bg-red-50"
                                     onClick={async () => {
                                         if (confirm("Möchtest du wirklich deinen Account und alle Daten löschen? Dies kann nicht rückgängig gemacht werden.")) {
-                                            const token = localStorage.getItem("guestToken");
+                                            const token = getGuestToken();
                                             if (token) {
                                                 // 1. Delete on server
-                                                const { deleteGuestAccount } = await import("@/actions/guest");
+                                                // 1. Delete on server
                                                 await deleteGuestAccount(token);
 
-                                                // 2. Clear local storage
-                                                localStorage.removeItem("guestToken");
+                                                // 2. Clear local storage via utility
+                                                resetGuestToken();
 
                                                 // 3. Reload page to generate fresh token/session
                                                 window.location.reload();

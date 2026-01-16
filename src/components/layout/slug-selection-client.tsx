@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { getGradientStyle } from "@/lib/avatar-gradient";
+import { getOrCreateGuestToken, getGuestToken, resetGuestToken } from "@/lib/guest-token";
 import Link from "next/link";
 import {
     DropdownMenu,
@@ -40,11 +41,7 @@ export function SlugSelectionClient({ topics, prefilledSlug = "" }: SlugSelectio
     const router = useRouter();
 
     React.useEffect(() => {
-        let token = localStorage.getItem("guestToken");
-        if (!token) {
-            token = crypto.randomUUID();
-            localStorage.setItem("guestToken", token);
-        }
+        const token = getOrCreateGuestToken();
         setGuestToken(token);
     }, []);
 
@@ -132,11 +129,11 @@ export function SlugSelectionClient({ topics, prefilledSlug = "" }: SlugSelectio
                                     className="text-red-600 focus:text-red-600 focus:bg-red-50"
                                     onClick={async () => {
                                         if (confirm("Möchtest du wirklich deinen Account und alle Daten löschen? Dies kann nicht rückgängig gemacht werden.")) {
-                                            const token = localStorage.getItem("guestToken");
+                                            const token = getGuestToken();
                                             if (token) {
                                                 const { deleteGuestAccount } = await import("@/actions/guest");
                                                 await deleteGuestAccount(token);
-                                                localStorage.removeItem("guestToken");
+                                                resetGuestToken();
                                                 window.location.reload();
                                             }
                                         }

@@ -8,6 +8,7 @@ import { MediathekView } from "@/components/layout/mediathek-view";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { toast } from "sonner";
+import { getOrCreateGuestToken } from "@/lib/guest-token";
 
 interface Topic {
     id: string;
@@ -33,11 +34,7 @@ export function TopicPageClient({ topic, slug }: TopicPageClientProps) {
     // Load/Create guest token and fetch history on mount
     useEffect(() => {
         const initChat = async () => {
-            let token = localStorage.getItem("guestToken");
-            if (!token) {
-                token = crypto.randomUUID();
-                localStorage.setItem("guestToken", token);
-            }
+            const token = getOrCreateGuestToken();
             setGuestToken(token);
 
             // Fetch history
@@ -142,6 +139,7 @@ function TopicPageChat({
                     isLoading={isLoading}
                     error={error}
                     centralQuestion={topic.centralQuestion || undefined}
+                    artifacts={topic.artifacts}
                 />
             }
             mediathekView={<MediathekView artifacts={topic.artifacts} slug={slug} />}
