@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Link as LinkIcon, Youtube, FileText, ArrowUpRight, Play, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { ProfileCard, UserProfileData } from "@/components/layout/ProfileCard";
 
 type MediaType = "all" | "link" | "youtube" | "pdf";
 
@@ -25,6 +26,7 @@ interface Artifact {
 interface MediathekViewProps {
     artifacts: Artifact[];
     slug: string;
+    profiles?: UserProfileData[];
 }
 
 // --- Helper Functions ---
@@ -193,7 +195,7 @@ const CompactCard = ({ artifact, type }: { artifact: Artifact, type: 'pdf' | 'li
 
 // --- Main Component ---
 
-export function MediathekView({ artifacts, slug }: MediathekViewProps) {
+export function MediathekView({ artifacts, slug, profiles = [] }: MediathekViewProps) {
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
@@ -351,6 +353,18 @@ export function MediathekView({ artifacts, slug }: MediathekViewProps) {
 
                 {/* Content Sections */}
                 <div className="space-y-12">
+
+                    {/* PERSPEKTIVEN SECTION - User Profiles */}
+                    {profiles.length > 0 && (
+                        <section>
+                            <SectionHeader label="Perspektiven" />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {profiles.map(profile => (
+                                    <ProfileCard key={profile.id} profile={profile} />
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
                     {/* VIDEOS SECTION */}
                     {groupedArtifacts.videos.length > 0 && (

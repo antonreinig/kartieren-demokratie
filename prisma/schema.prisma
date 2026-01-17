@@ -103,6 +103,7 @@ model Topic {
 
   artifacts    Artifact[]
   chatSessions ChatSession[]
+  profiles     UserProfile[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -188,6 +189,7 @@ model ChatSession {
   guestToken  String?
   
   messages    ChatMessage[]
+  profile     UserProfile?
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -207,5 +209,51 @@ model ChatMessage {
   content     String   @db.Text
   
   createdAt   DateTime @default(now())
+}
+
+// Deliberative Attitude Profile - Anonymous user perspective from chat
+model UserProfile {
+  id              String   @id @default(cuid())
+  
+  // Link to chat session (one profile per session)
+  sessionId       String   @unique
+  session         ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  topicId         String
+  topic           Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  
+  // Profile Header
+  profileTitle    String   // 2-4 words short title
+  subtitle        String?  // Optional, max ~8 words
+  
+  // A. Context & Role
+  roleContext     String   @db.Text
+  
+  // B. Overall Attitude
+  overallAttitude String   @db.Text
+  
+  // C. Core Values (JSON array of { label, description? })
+  coreValues      Json
+  
+  // D1. Key Concerns (JSON array of { text, qualification? })
+  keyConcerns     Json
+  
+  // D2. Red Lines (JSON array of { text, scope? })
+  redLines        Json
+  
+  // E. Acknowledged Counterarguments (JSON array of { argument, whyUnderstood })
+  counterarguments Json
+  
+  // F. Conditions for Change (JSON array of { conditionText, type })
+  conditionsForChange Json
+  
+  // G. One-Sentence Characterization
+  characterization String  @db.Text
+  
+  // Tracking when profile was generated
+  messageCount    Int     @default(0)  // Number of user messages when generated
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 

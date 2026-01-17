@@ -103,9 +103,30 @@ export async function POST(req: Request) {
                         content
                     }
                 });
+
+                // Count user messages and trigger profile generation every 3 messages
+                const userMessageCount = await prisma.chatMessage.count({
+                    where: {
+                        sessionId: chatSession.id,
+                        role: 'user'
+                    }
+                });
+
+                // Trigger profile generation every 3 messages (async, non-blocking)
+                if (userMessageCount >= 3 && userMessageCount % 3 === 0) {
+                    // Fire and forget - don't await to avoid blocking the response
+                    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/profile/generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: chatSession.id })
+                    }).catch(err => {
+                        console.error('Profile generation trigger failed:', err);
+                    });
+                }
             }
         }
     }
+
 
     // 3. Construct System Prompt (Deliberative Interview Style)
     const systemPrompt = `
