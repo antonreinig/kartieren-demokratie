@@ -112,8 +112,8 @@ export async function POST(req: Request) {
                     }
                 });
 
-                // Trigger profile generation every 3 messages (async, non-blocking)
-                if (userMessageCount >= 3 && userMessageCount % 3 === 0) {
+                // Trigger profile generation: first at 6, then every 3 messages
+                if (userMessageCount >= 6 && (userMessageCount === 6 || userMessageCount % 3 === 0)) {
                     // Fire and forget - don't await to avoid blocking the response
                     fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/profile/generate`, {
                         method: 'POST',

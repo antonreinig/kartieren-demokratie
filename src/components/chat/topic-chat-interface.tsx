@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Send, Loader2, Mic, ArrowUp, X, Play } from "lucide-react";
 import { toast } from "sonner";
 import AudioVisualizer from "@/components/AudioVisualizer";
+import { UserProfileSidebar } from "@/components/layout/UserProfileSidebar";
 
 type MessagePart = { type: string; text?: string };
 
@@ -56,6 +57,16 @@ interface TopicChatInterfaceProps {
     error?: Error;
     centralQuestion?: string;
     artifacts?: Artifact[];  // NEW: artifacts for content cards
+    // Profile sidebar props
+    userProfile?: any;
+    messageCount?: number;
+    messagesUntilNextUpdate?: number;
+    isProfileLoading?: boolean;
+    isRefreshing?: boolean;
+    onRefreshProfile?: () => void;
+    profileSidebarCollapsed?: boolean;
+    onToggleProfileSidebar?: () => void;
+    avatarGradient?: string;
 }
 
 export function TopicChatInterface({
@@ -67,7 +78,17 @@ export function TopicChatInterface({
     isLoading,
     error,
     centralQuestion,
-    artifacts = []  // NEW
+    artifacts = [],  // NEW
+    // Profile sidebar props
+    userProfile,
+    messageCount = 0,
+    messagesUntilNextUpdate = 3,
+    isProfileLoading = false,
+    isRefreshing = false,
+    onRefreshProfile,
+    profileSidebarCollapsed = false,
+    onToggleProfileSidebar,
+    avatarGradient
 }: TopicChatInterfaceProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -206,131 +227,147 @@ export function TopicChatInterface({
 
             {/* Chat Area - Sticky Bottom & Upwards Building */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 flex flex-col">
-                <div className="mt-auto space-y-4">
-                    {displayMessages.map((m: any) => (
-                        <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[85%] sm:max-w-[70%] p-4 rounded-2xl text-sm md:text-base leading-relaxed shadow-sm whitespace-pre-wrap ${m.role === "user"
-                                ? "bg-[#303030] text-white rounded-br-none"
-                                : "bg-white text-gray-800 rounded-bl-none"
-                                }`}>
-                                {(() => {
-                                    const messageText = getMessageText(m);
-                                    const { cleanText, contentIds } = parseContentMarkers(messageText);
-                                    const matchedArtifacts = contentIds
-                                        .map(id => artifactsMap.get(id))
-                                        .filter((a): a is Artifact => a !== undefined);
+                <div className="mt-auto flex gap-4">
+                    {/* Messages Column */}
+                    <div className="flex-1 space-y-4 pb-4 lg:pr-4">
+                        {displayMessages.map((m: any) => (
+                            <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                                <div className={`max-w-[85%] sm:max-w-[70%] p-4 rounded-2xl text-sm md:text-base leading-relaxed shadow-sm whitespace-pre-wrap ${m.role === "user"
+                                    ? "bg-[#303030] text-white rounded-br-none"
+                                    : "bg-white text-gray-800 rounded-bl-none"
+                                    }`}>
+                                    {(() => {
+                                        const messageText = getMessageText(m);
+                                        const { cleanText, contentIds } = parseContentMarkers(messageText);
+                                        const matchedArtifacts = contentIds
+                                            .map(id => artifactsMap.get(id))
+                                            .filter((a): a is Artifact => a !== undefined);
 
-                                    return (
-                                        <>
-                                            {/* Message text (without markers) */}
-                                            {cleanText}
+                                        return (
+                                            <>
+                                                {/* Message text (without markers) */}
+                                                {cleanText}
 
-                                            {/* Render content cards if any markers found */}
-                                            {matchedArtifacts.length > 0 && (
-                                                <div className={cleanText.length > 0 ? "mt-4 pt-3 border-t border-gray-100" : ""}>
-                                                    <div className="flex flex-col gap-3">
-                                                        {matchedArtifacts.map(artifact => {
-                                                            const youtubeId = getYouTubeId(artifact.url);
-                                                            const isVideo = !!youtubeId;
+                                                {/* Render content cards if any markers found */}
+                                                {matchedArtifacts.length > 0 && (
+                                                    <div className={cleanText.length > 0 ? "mt-4 pt-3 border-t border-gray-100" : ""}>
+                                                        <div className="flex flex-col gap-3">
+                                                            {matchedArtifacts.map(artifact => {
+                                                                const youtubeId = getYouTubeId(artifact.url);
+                                                                const isVideo = !!youtubeId;
 
-                                                            if (isVideo && youtubeId) {
-                                                                return (
-                                                                    <button
-                                                                        key={artifact.id}
-                                                                        onClick={() => setSelectedVideoId(youtubeId)}
-                                                                        className="group flex w-full items-center gap-3 p-2 pr-3 bg-gray-50 hover:bg-gray-100 rounded-xl overflow-hidden transition-all border border-gray-100 hover:border-gray-200 text-left"
-                                                                    >
-                                                                        {/* Small Thumbnail Left */}
-                                                                        <div className="relative h-16 w-24 shrink-0 rounded-lg overflow-hidden bg-black/10 shadow-sm ring-1 ring-black/5">
-                                                                            <img
-                                                                                src={`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`}
-                                                                                alt={artifact.title || 'Video thumbnail'}
-                                                                                className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                                                                            />
-                                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/0 transition-all">
-                                                                                <div className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm text-black">
-                                                                                    {/* Small Play Icon */}
-                                                                                    <svg className="w-3 h-3 ml-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                                                if (isVideo && youtubeId) {
+                                                                    return (
+                                                                        <button
+                                                                            key={artifact.id}
+                                                                            onClick={() => setSelectedVideoId(youtubeId)}
+                                                                            className="group flex w-full items-center gap-3 p-2 pr-3 bg-gray-50 hover:bg-gray-100 rounded-xl overflow-hidden transition-all border border-gray-100 hover:border-gray-200 text-left"
+                                                                        >
+                                                                            {/* Small Thumbnail Left */}
+                                                                            <div className="relative h-16 w-24 shrink-0 rounded-lg overflow-hidden bg-black/10 shadow-sm ring-1 ring-black/5">
+                                                                                <img
+                                                                                    src={`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`}
+                                                                                    alt={artifact.title || 'Video thumbnail'}
+                                                                                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                                                                                />
+                                                                                <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/0 transition-all">
+                                                                                    <div className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm text-black">
+                                                                                        {/* Small Play Icon */}
+                                                                                        <svg className="w-3 h-3 ml-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                                                                    </div>
                                                                                 </div>
                                                                             </div>
-                                                                        </div>
 
-                                                                        {/* Text Content */}
-                                                                        <div className="flex-1 min-w-0 py-1">
-                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                            {/* Text Content */}
+                                                                            <div className="flex-1 min-w-0 py-1">
+                                                                                <div className="flex items-center gap-2 mb-1">
+                                                                                    <span className="text-[10px] font-bold tracking-wider text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded uppercase">
+                                                                                        {artifact.tags?.[0]?.label || 'VIDEO'}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <h4 className="text-sm font-medium text-gray-900 line-clamp-2 leading-tight group-hover:text-amber-700 transition-colors">
+                                                                                    {artifact.title || 'Video'}
+                                                                                </h4>
+                                                                            </div>
+
+                                                                            <span className="text-gray-300 group-hover:text-amber-500 transition-colors self-center">
+                                                                                <Play className="w-4 h-4 fill-current ml-0.5" />
+                                                                            </span>
+                                                                        </button>
+                                                                    );
+                                                                }
+
+                                                                return (
+                                                                    <a
+                                                                        key={artifact.id}
+                                                                        href={artifact.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-100 hover:border-gray-200 transition-all group"
+                                                                    >
+                                                                        <div className="h-10 w-10 flex items-center justify-center bg-white rounded-lg border border-gray-100 text-gray-400 shrink-0">
+                                                                            {artifact.url.endsWith('.pdf') ? (
+                                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                                </svg>
+                                                                            ) : (
+                                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                                                                </svg>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="flex items-center gap-2 mb-0.5">
                                                                                 <span className="text-[10px] font-bold tracking-wider text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded uppercase">
-                                                                                    {artifact.tags?.[0]?.label || 'VIDEO'}
+                                                                                    {artifact.tags?.[0]?.label || 'INFO'}
                                                                                 </span>
                                                                             </div>
-                                                                            <h4 className="text-sm font-medium text-gray-900 line-clamp-2 leading-tight group-hover:text-amber-700 transition-colors">
-                                                                                {artifact.title || 'Video'}
+                                                                            <h4 className="text-sm font-medium text-gray-900 line-clamp-1">
+                                                                                {artifact.title || 'Link'}
                                                                             </h4>
+                                                                            <p className="text-xs text-gray-500 truncate">{new URL(artifact.url).hostname}</p>
                                                                         </div>
-
-                                                                        <span className="text-gray-300 group-hover:text-amber-500 transition-colors self-center">
-                                                                            <Play className="w-4 h-4 fill-current ml-0.5" />
+                                                                        <span className="text-gray-300 group-hover:text-amber-500 transition-colors">
+                                                                            <ArrowUp className="w-4 h-4 rotate-45" />
                                                                         </span>
-                                                                    </button>
+                                                                    </a>
                                                                 );
-                                                            }
-
-                                                            return (
-                                                                <a
-                                                                    key={artifact.id}
-                                                                    href={artifact.url}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-100 hover:border-gray-200 transition-all group"
-                                                                >
-                                                                    <div className="h-10 w-10 flex items-center justify-center bg-white rounded-lg border border-gray-100 text-gray-400 shrink-0">
-                                                                        {artifact.url.endsWith('.pdf') ? (
-                                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                            </svg>
-                                                                        ) : (
-                                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                                                            </svg>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <div className="flex items-center gap-2 mb-0.5">
-                                                                            <span className="text-[10px] font-bold tracking-wider text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded uppercase">
-                                                                                {artifact.tags?.[0]?.label || 'INFO'}
-                                                                            </span>
-                                                                        </div>
-                                                                        <h4 className="text-sm font-medium text-gray-900 line-clamp-1">
-                                                                            {artifact.title || 'Link'}
-                                                                        </h4>
-                                                                        <p className="text-xs text-gray-500 truncate">{new URL(artifact.url).hostname}</p>
-                                                                    </div>
-                                                                    <span className="text-gray-300 group-hover:text-amber-500 transition-colors">
-                                                                        <ArrowUp className="w-4 h-4 rotate-45" />
-                                                                    </span>
-                                                                </a>
-                                                            );
-                                                        })}
+                                                            })}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    );
-                                })()}
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                    {isLoading && messages[messages.length - 1]?.role === "user" && (
-                        <div className="flex justify-start">
-                            <div className="bg-white/50 p-4 rounded-2xl rounded-bl-none shadow-sm">
-                                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                        ))}
+                        {isLoading && messages[messages.length - 1]?.role === "user" && (
+                            <div className="flex justify-start">
+                                <div className="bg-white/50 p-4 rounded-2xl rounded-bl-none shadow-sm">
+                                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                                </div>
                             </div>
-                        </div>
-                    )}
-                    {error && (
-                        <div className="text-center text-red-500 text-sm p-4">
-                            Ein Fehler ist aufgetreten. Bitte versuche es später erneut.
-                        </div>
-                    )}
+                        )}
+                        {error && (
+                            <div className="text-center text-red-500 text-sm p-4">
+                                Ein Fehler ist aufgetreten. Bitte versuche es später erneut.
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Profile Sidebar - scrolls with chat, sticks to bottom */}
+                    <div className="hidden lg:block w-64 shrink-0 self-end pb-4">
+                        <UserProfileSidebar
+                            profile={userProfile}
+                            messageCount={messageCount}
+                            messagesUntilNextUpdate={messagesUntilNextUpdate}
+                            isLoading={isProfileLoading}
+                            isRefreshing={isRefreshing}
+                            onRefresh={onRefreshProfile || (() => { })}
+                            avatarGradient={avatarGradient}
+                        />
+                    </div>
                 </div>
             </div>
 

@@ -50,6 +50,9 @@ export interface UserProfileData {
 
 interface ProfileCardProps {
     profile: UserProfileData;
+    avatarGradient?: string;
+    isOwnProfile?: boolean;
+    isInChatSidebar?: boolean;
 }
 
 // Collapsible section component
@@ -115,18 +118,18 @@ const Section = ({
 // Value chip component
 const ValueChip = ({ value }: { value: CoreValue }) => (
     <div
-        className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F8CD32]/20 border border-[#F8CD32]/30 rounded-full text-sm font-medium text-zinc-800"
+        className="inline-flex items-center gap-1 px-2.5 py-1 bg-zinc-100 border border-zinc-200 rounded-full text-xs font-medium text-zinc-700"
         title={value.description}
     >
-        <Heart className="w-3 h-3 text-[#D9B229]" />
+        <Heart className="w-3 h-3 text-zinc-400" />
         {value.label}
     </div>
 );
 
 // Concern item component
 const ConcernItem = ({ concern }: { concern: KeyConcern }) => (
-    <div className="flex gap-2 py-1.5">
-        <span className="text-amber-500 shrink-0">•</span>
+    <div className="flex gap-2 py-1">
+        <span className="text-zinc-400 shrink-0">•</span>
         <div>
             <span className="text-zinc-700">{concern.text}</span>
             {concern.qualification && (
@@ -185,7 +188,7 @@ const ConditionItem = ({ condition }: { condition: ConditionForChange }) => {
     );
 };
 
-export function ProfileCard({ profile }: ProfileCardProps) {
+export function ProfileCard({ profile, avatarGradient, isOwnProfile = false, isInChatSidebar = false }: ProfileCardProps) {
     const coreValues = profile.coreValues as CoreValue[];
     const keyConcerns = profile.keyConcerns as KeyConcern[];
     const redLines = profile.redLines as RedLine[];
@@ -193,36 +196,58 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     const conditionsForChange = profile.conditionsForChange as ConditionForChange[];
 
     return (
-        <Card className="bg-white border-none rounded-2xl shadow-lg overflow-hidden p-0">
-            {/* Header */}
-            <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 p-5 text-white">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                        <h3 className="text-lg font-bold leading-tight mb-1">
+        <Card className={cn(
+            "backdrop-blur-sm border rounded-xl shadow-md overflow-hidden p-0",
+            isInChatSidebar
+                ? "bg-[#F8CD32] border-[#E5BC2E]"
+                : isOwnProfile
+                    ? "bg-white/95 border-2 border-zinc-800 ring-2 ring-zinc-800/20"
+                    : "bg-white/95 border-zinc-200/50"
+        )}>
+            {/* Header - compact with gradient avatar */}
+            <div className={cn(
+                "px-3 py-2.5 border-b",
+                isInChatSidebar
+                    ? "bg-[#E5BC2E] border-[#D9B229]"
+                    : isOwnProfile
+                        ? "bg-zinc-800 border-zinc-700"
+                        : "bg-zinc-50 border-zinc-100"
+            )}>
+                <div className="flex items-center gap-2">
+                    {/* Dynamic gradient avatar */}
+                    <div
+                        className="h-6 w-6 rounded-full shrink-0"
+                        style={{ background: avatarGradient || 'linear-gradient(135deg, #94a3b8, #64748b)' }}
+                    />
+                    <div className="flex-1 min-w-0">
+                        <p className={cn(
+                            "text-[10px]",
+                            isOwnProfile ? "text-zinc-300" : "text-zinc-400"
+                        )}>
+                            {isOwnProfile ? "Deine Perspektive" : "Perspektive"}
+                        </p>
+                        <h3 className={cn(
+                            "text-sm font-semibold leading-tight truncate",
+                            isOwnProfile ? "text-white" : "text-zinc-700"
+                        )}>
                             {profile.profileTitle}
                         </h3>
-                        {profile.subtitle && (
-                            <p className="text-zinc-400 text-sm">
-                                {profile.subtitle}
-                            </p>
-                        )}
-                    </div>
-                    <div className="shrink-0 p-2 bg-[#F8CD32] rounded-full">
-                        <User className="w-5 h-5 text-black" />
                     </div>
                 </div>
+            </div>
 
-                {/* Quick summary */}
-                <p className="mt-4 text-sm text-zinc-300 leading-relaxed italic border-l-2 border-[#F8CD32] pl-3">
+            {/* Quick summary */}
+            <div className="px-3 py-2 bg-zinc-50/50 border-b border-zinc-100">
+                <p className="text-[11px] text-zinc-600 leading-relaxed italic">
                     {profile.characterization}
                 </p>
             </div>
 
-            {/* Content */}
-            <div className="p-4 space-y-3">
+            {/* Content - compact */}
+            <div className="p-3 space-y-2">
                 {/* Core Values - Always visible as chips */}
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
                         Kernwerte
                     </p>
                     <div className="flex flex-wrap gap-2">

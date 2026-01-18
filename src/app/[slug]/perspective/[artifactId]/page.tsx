@@ -39,7 +39,7 @@ export default async function PerspectiveDetailPage({ params }: PageProps) {
             <div className="max-w-4xl mx-auto space-y-8">
 
                 {/* Back Button */}
-                <Link href={`/${slug}?view=mediathek`}>
+                <Link href={`/${slug}?view=interessantes`}>
                     <Button variant="ghost" className="pl-0 hover:bg-transparent hover:underline text-black font-medium">
                         <ArrowLeft className="mr-2 h-4 w-4" /> Zurück zur Übersicht
                     </Button>
@@ -48,9 +48,9 @@ export default async function PerspectiveDetailPage({ params }: PageProps) {
                 {/* Main Content Card */}
                 <div className="rounded-3xl shadow-2xl bg-white overflow-hidden p-0 flex flex-col leading-none">
 
-                    {/* Media Header */}
-                    <div className="w-full bg-black shrink-0">
-                        {isVideo && youtubeId ? (
+                    {/* Media Header - Different for Video vs Article */}
+                    {isVideo && youtubeId ? (
+                        <div className="w-full bg-black shrink-0">
                             <div className="aspect-video w-full">
                                 <iframe
                                     src={`https://www.youtube.com/embed/${youtubeId}`}
@@ -60,16 +60,12 @@ export default async function PerspectiveDetailPage({ params }: PageProps) {
                                     className="w-full h-full border-none block"
                                 />
                             </div>
-                        ) : (
-                            <div className="aspect-[3/1] w-full bg-zinc-900 flex items-center justify-center p-10">
-                                {artifact.type === 'PDF' ? <FileText className="w-16 h-16 text-zinc-700" /> : <LinkIcon className="w-16 h-16 text-zinc-700" />}
-                            </div>
-                        )}
-                    </div>
+                        </div>
+                    ) : null}
 
                     <div className="p-8 lg:p-12 space-y-8">
 
-                        {/* Title & Meta */}
+                        {/* Title & Meta - Side by side with image for articles */}
                         <div className="space-y-4">
                             <div className="flex flex-wrap gap-3 mb-2">
                                 {artifact.tags.map(tag => (
@@ -79,24 +75,63 @@ export default async function PerspectiveDetailPage({ params }: PageProps) {
                                 ))}
                             </div>
 
-                            <h1 className="text-3xl lg:text-4xl font-bold leading-tight text-black">
-                                {artifact.title || "Ohne Titel"}
-                            </h1>
+                            {/* Title + Image Row for non-videos */}
+                            {!isVideo && artifact.imageUrl ? (
+                                <div className="flex gap-8 items-start">
+                                    <div className="flex-1 space-y-4">
+                                        <h1 className="text-3xl lg:text-4xl font-bold leading-tight text-black">
+                                            {artifact.title || "Ohne Titel"}
+                                        </h1>
+                                        {artifact.description && (
+                                            <p className="text-xl text-gray-600 leading-relaxed">
+                                                {artifact.description}
+                                            </p>
+                                        )}
+                                        <a
+                                            href={artifact.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            <Button className="bg-black text-white hover:bg-zinc-800 rounded-full px-6 py-5 font-bold uppercase tracking-wider text-sm">
+                                                <ExternalLink className="w-4 h-4 mr-2" />
+                                                {artifact.type === 'PDF' ? 'Dokument öffnen' : 'Artikel öffnen'}
+                                            </Button>
+                                        </a>
+                                    </div>
+                                    <div className="w-48 lg:w-64 shrink-0 rounded-xl overflow-hidden bg-zinc-100 shadow-lg">
+                                        <img
+                                            src={artifact.imageUrl}
+                                            alt={artifact.title || "Preview"}
+                                            className="w-full h-auto object-cover"
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <h1 className="text-3xl lg:text-4xl font-bold leading-tight text-black">
+                                        {artifact.title || "Ohne Titel"}
+                                    </h1>
 
-                            {artifact.description && (
-                                <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
-                                    {artifact.description}
-                                </p>
+                                    {artifact.description && (
+                                        <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
+                                            {artifact.description}
+                                        </p>
+                                    )}
+
+                                    {!isVideo && (
+                                        <a
+                                            href={artifact.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            <Button className="bg-black text-white hover:bg-zinc-800 rounded-full px-6 py-5 font-bold uppercase tracking-wider text-sm">
+                                                <ExternalLink className="w-4 h-4 mr-2" />
+                                                {artifact.type === 'PDF' ? 'Dokument öffnen' : 'Artikel öffnen'}
+                                            </Button>
+                                        </a>
+                                    )}
+                                </>
                             )}
-
-                            <a
-                                href={artifact.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center text-black font-bold hover:underline decoration-2 decoration-[#F8CD32]"
-                            >
-                                <ExternalLink className="w-4 h-4 mr-2" /> Originalquelle öffnen
-                            </a>
                         </div>
 
                         {/* Analysis Dashboard */}
@@ -112,8 +147,8 @@ export default async function PerspectiveDetailPage({ params }: PageProps) {
                                                 <div
                                                     key={level}
                                                     className={`px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider border ${artifact.evidenceLevel === level
-                                                            ? 'bg-black text-white border-black'
-                                                            : 'bg-white text-zinc-300 border-zinc-200'
+                                                        ? 'bg-black text-white border-black'
+                                                        : 'bg-white text-zinc-300 border-zinc-200'
                                                         }`}
                                                 >
                                                     {level}

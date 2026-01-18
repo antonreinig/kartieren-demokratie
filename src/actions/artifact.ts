@@ -8,6 +8,7 @@ const artifactSchema = z.object({
     url: z.string().url(),
     title: z.string().min(1, "Titel wird benötigt"),
     description: z.string().optional(),
+    imageUrl: z.string().url().optional().nullable(),
     type: z.enum(["LINK", "PDF", "VIDEO"]),
     takeaways: z.array(z.string().min(5)),
     tags: z.array(z.string()),
@@ -20,7 +21,7 @@ const artifactSchema = z.object({
 })
 
 export async function createArtifact(data: z.infer<typeof artifactSchema>) {
-    const { url, title, description, type, takeaways, tags, topicId, userId, evidenceLevel, mainSource, contentCategories } = data
+    const { url, title, description, imageUrl, type, takeaways, tags, topicId, userId, evidenceLevel, mainSource, contentCategories } = data
 
     // Create Artifact
     const artifact = await prisma.artifact.create({
@@ -28,6 +29,7 @@ export async function createArtifact(data: z.infer<typeof artifactSchema>) {
             url,
             title,
             description,
+            imageUrl,
             type,
             topicId,
             contributorId: userId,

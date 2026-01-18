@@ -6,9 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Link as LinkIcon, Youtube, FileText, ArrowUpRight, Play, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { ProfileCard, UserProfileData } from "@/components/layout/ProfileCard";
-import { getGradientStyle } from "@/lib/avatar-gradient";
 
 type MediaType = "all" | "link" | "youtube" | "pdf";
 
@@ -17,6 +14,7 @@ interface Artifact {
     title?: string | null;
     description?: string | null;
     url: string;
+    imageUrl?: string | null;
     tags: { id: string; label: string }[];
     takeaways: { id: string; content: string }[];
     evidenceLevel?: string | null;
@@ -24,12 +22,10 @@ interface Artifact {
     contentCategories?: any;
 }
 
-interface MediathekViewProps {
+interface InteressantesViewProps {
     artifacts: Artifact[];
     slug: string;
-    profiles?: UserProfileData[];
-    currentUserProfileId?: string;
-    currentUserAvatarGradient?: string;
+    isAdmin?: boolean;
 }
 
 // --- Helper Functions ---
@@ -58,11 +54,10 @@ const SectionHeader = ({ label }: { label: string }) => (
         <div className="px-3 py-1 border border-black rounded-sm text-sm font-bold uppercase tracking-widest bg-transparent text-black">
             {label}
         </div>
-        {/* Strich entfernt wie gewünscht */}
     </div>
 );
 
-const VideoCard = ({ artifact, onPlay, slug }: { artifact: Artifact, onPlay: (videoId: string) => void, slug: string }) => {
+const VideoCard = ({ artifact, onPlay, slug, isAdmin, onDelete }: { artifact: Artifact, onPlay: (videoId: string) => void, slug: string, isAdmin?: boolean, onDelete?: (id: string) => void }) => {
     const videoId = getYouTubeId(artifact.url);
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
 
@@ -74,12 +69,21 @@ const VideoCard = ({ artifact, onPlay, slug }: { artifact: Artifact, onPlay: (vi
     }
 
     return (
-        <Card className="group flex flex-col h-full bg-black text-white border-none rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 p-0">
-            {/* Thumbnail Area - Link to Detail Page now? Or keep playing? User said "button at the bottom". 
-                Let's keep thumbnail playing for now, or maybe link to detail? 
-                Actually, usually "Perspectives" implies going deeper. 
-                Let's make the Title link to EXTERNAL (as before) but add the button for INTERNAL.
-            */}
+        <Card className="group relative flex flex-col h-full bg-black text-white border-none rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 p-0">
+            {/* Admin Delete Button */}
+            {isAdmin && onDelete && (
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDelete(artifact.id);
+                    }}
+                    className="absolute top-2 right-2 z-20 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110"
+                    title="Löschen"
+                >
+                    <X className="w-4 h-4" />
+                </button>
+            )}
             <div className="relative w-full aspect-video bg-zinc-900">
                 <a href={artifact.url} onClick={handleClick} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
                     {thumbnailUrl ? (
@@ -93,7 +97,6 @@ const VideoCard = ({ artifact, onPlay, slug }: { artifact: Artifact, onPlay: (vi
                             <Youtube className="w-12 h-12 text-zinc-700" />
                         </div>
                     )}
-                    {/* Play Button Overlay */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="w-16 h-16 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 group-hover:bg-[#F8CD32] group-hover:border-[#F8CD32] group-hover:text-black transition-all duration-300 shrink-0 shadow-lg">
                             <Play className="w-6 h-6 fill-white text-white group-hover:text-black group-hover:fill-black ml-1" />
@@ -101,23 +104,17 @@ const VideoCard = ({ artifact, onPlay, slug }: { artifact: Artifact, onPlay: (vi
                     </div>
                 </a>
             </div>
-
-            {/* Content */}
             <div className="p-4 pt-3 flex flex-col flex-1">
                 <h4 className="font-bold text-lg leading-snug mb-2 group-hover:text-[#F8CD32] transition-colors line-clamp-2">
                     <a href={artifact.url} onClick={handleClick} target="_blank" rel="noopener noreferrer">
                         {artifact.title || "Ohne Titel"}
                     </a>
                 </h4>
-
-                {/* Description - new requirement */}
                 {artifact.description && (
                     <p className="text-sm text-zinc-400 mb-3 line-clamp-2 leading-relaxed">
                         {artifact.description}
                     </p>
                 )}
-
-                {/* Tags (moved up slightly) */}
                 <div className="flex flex-wrap gap-2 mb-4">
                     {artifact.tags.map((tag) => (
                         <span key={tag.id} className="px-2 py-0.5 bg-white/10 rounded-md text-[10px] font-bold uppercase tracking-wider text-zinc-300">
@@ -125,7 +122,6 @@ const VideoCard = ({ artifact, onPlay, slug }: { artifact: Artifact, onPlay: (vi
                         </span>
                     ))}
                 </div>
-
                 <div className="mt-auto grid gap-2">
                     <Link href={`/${slug}/perspective/${artifact.id}`} className="block w-full">
                         <Button variant="outline" className="w-full border-white/20 hover:bg-white hover:text-black hover:border-white text-xs uppercase tracking-wider font-bold h-9 bg-transparent text-zinc-300">
@@ -138,59 +134,79 @@ const VideoCard = ({ artifact, onPlay, slug }: { artifact: Artifact, onPlay: (vi
     );
 };
 
-const CompactCard = ({ artifact, type }: { artifact: Artifact, type: 'pdf' | 'link' }) => {
+const CompactCard = ({ artifact, type, slug, isAdmin, onDelete }: { artifact: Artifact, type: 'pdf' | 'link', slug: string, isAdmin?: boolean, onDelete?: (id: string) => void }) => {
     const Icon = type === 'pdf' ? FileText : LinkIcon;
-    const label = type === 'pdf' ? 'DOKUMENT' : 'LINK';
+    const label = type === 'pdf' ? 'DOKUMENT' : 'ARTIKEL';
+    const hasImage = artifact.imageUrl && !artifact.imageUrl.includes('logo') && !artifact.imageUrl.includes('favicon');
 
     return (
-        <Card className="group flex flex-col h-full bg-black text-white border-none rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-5">
-            <div className="flex items-start justify-between gap-4 mb-2">
-                <div className="flex items-center gap-2 text-[#F8CD32]">
-                    <Icon className="w-4 h-4" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{label}</span>
-                </div>
-                <a
-                    href={artifact.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-zinc-500 hover:text-white transition-colors"
+        <Card className="group relative flex flex-col h-full bg-black text-white border-none rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 p-0">
+            {/* Admin Delete Button */}
+            {isAdmin && onDelete && (
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onDelete(artifact.id);
+                    }}
+                    className="absolute top-2 right-2 z-20 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110"
+                    title="Löschen"
                 >
-                    <ArrowUpRight className="w-4 h-4" />
+                    <X className="w-4 h-4" />
+                </button>
+            )}
+
+            {/* Image Section - matches VideoCard aspect-video */}
+            <div className="relative w-full aspect-video bg-zinc-900">
+                <a href={artifact.url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                    {hasImage ? (
+                        <img
+                            src={artifact.imageUrl!}
+                            alt={artifact.title || 'Preview'}
+                            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 block"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <Icon className="w-12 h-12 text-zinc-700" />
+                        </div>
+                    )}
+                    {/* Type Badge Overlay */}
+                    <div className="absolute top-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-md flex items-center gap-1.5">
+                        <Icon className="w-3 h-3 text-[#F8CD32]" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-300">{label}</span>
+                    </div>
                 </a>
             </div>
 
-            <h4 className="font-bold text-lg leading-snug mb-2 group-hover:text-[#F8CD32] transition-colors">
-                <a href={artifact.url} target="_blank" rel="noopener noreferrer">
-                    {artifact.title || artifact.url}
-                </a>
-            </h4>
-
-            <a
-                href={artifact.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-zinc-500 truncate hover:text-zinc-300 transition-colors mb-4 block"
-            >
-                {artifact.url}
-            </a>
-
-            {artifact.takeaways.length > 0 && (
-                <div className="mb-4 space-y-1.5 flex-1">
-                    {artifact.takeaways.slice(0, 3).map((t) => (
-                        <div key={t.id} className="flex gap-2 items-baseline text-sm text-zinc-300 line-clamp-3">
-                            <span className="text-[#F8CD32] shrink-0">•</span>
-                            <span className="leading-relaxed">{t.content}</span>
-                        </div>
+            {/* Content Section - matches VideoCard padding */}
+            <div className="p-4 pt-3 flex flex-col flex-1">
+                <h4 className="font-bold text-lg leading-snug mb-2 group-hover:text-[#F8CD32] transition-colors line-clamp-2">
+                    <a href={artifact.url} target="_blank" rel="noopener noreferrer">
+                        {artifact.title || "Ohne Titel"}
+                    </a>
+                </h4>
+                {artifact.description && (
+                    <p className="text-sm text-zinc-400 mb-3 line-clamp-2 leading-relaxed">
+                        {artifact.description}
+                    </p>
+                )}
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {artifact.tags.map((tag) => (
+                        <span key={tag.id} className="px-2 py-0.5 bg-white/10 rounded-md text-[10px] font-bold uppercase tracking-wider text-zinc-300">
+                            {tag.label === "Grundlagenforschung" ? "FORSCHUNG" : tag.label}
+                        </span>
                     ))}
                 </div>
-            )}
-
-            <div className="mt-auto flex flex-wrap gap-2 pt-2 border-t border-white/10">
-                {artifact.tags.map((tag) => (
-                    <span key={tag.id} className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                        #{tag.label === "Grundlagenforschung" ? "FORSCHUNG" : tag.label}
-                    </span>
-                ))}
+                <div className="mt-auto grid gap-2">
+                    <Link href={`/${slug}/perspective/${artifact.id}`} className="block w-full">
+                        <Button variant="outline" className="w-full border-white/20 hover:bg-white hover:text-black hover:border-white text-xs uppercase tracking-wider font-bold h-9 bg-transparent text-zinc-300">
+                            Mehr erfahren
+                        </Button>
+                    </Link>
+                </div>
             </div>
         </Card>
     );
@@ -198,10 +214,32 @@ const CompactCard = ({ artifact, type }: { artifact: Artifact, type: 'pdf' | 'li
 
 // --- Main Component ---
 
-export function MediathekView({ artifacts, slug, profiles = [], currentUserProfileId, currentUserAvatarGradient }: MediathekViewProps) {
+export function InteressantesView({ artifacts: initialArtifacts, slug, isAdmin = false }: InteressantesViewProps) {
+    const [artifacts, setArtifacts] = useState(initialArtifacts);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+    // Handle delete artifact
+    const handleDelete = async (id: string) => {
+        if (!confirm('Wirklich löschen?')) return;
+
+        setIsDeleting(id);
+        try {
+            const res = await fetch(`/api/artifacts/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setArtifacts(prev => prev.filter(a => a.id !== id));
+            } else {
+                throw new Error('Delete failed');
+            }
+        } catch (error) {
+            console.error('Error deleting artifact:', error);
+            alert('Fehler beim Löschen');
+        } finally {
+            setIsDeleting(null);
+        }
+    };
 
     // Extract unique categories
     const categories = useMemo(() => {
@@ -218,10 +256,6 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
     // Filter and Group artifacts
     const groupedArtifacts = useMemo(() => {
         const filtered = artifacts.filter((artifact) => {
-            // Filter by search query - REMOVED as per request to turn into URL input only
-            // if (searchQuery) ...
-
-            // Filter by category
             if (selectedCategory) {
                 const hasCategory = artifact.tags.some((tag) => {
                     const label = tag.label === "Grundlagenforschung" ? "Forschung" : tag.label;
@@ -237,20 +271,20 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
         const links = filtered.filter(a => getMediaType(a.url) === 'link');
 
         return { videos, pdfs, links, isEmpty: filtered.length === 0 };
-    }, [artifacts, selectedCategory, searchQuery]);
+    }, [artifacts, selectedCategory]);
 
     if (artifacts.length === 0) {
         return (
             <div className="flex h-full w-full items-center justify-center p-8 text-center bg-[#F8CD32]">
                 <div className="max-w-md space-y-6">
-                    <h2 className="text-3xl font-bold text-black">Perspektiven</h2>
+                    <h2 className="text-3xl font-bold text-black">Interessantes</h2>
                     <p className="text-black/70 text-lg">
                         Noch keine Beiträge vorhanden. Mach den Anfang!
                     </p>
                     <Link href={`/${slug}/contribute`}>
                         <Button className="mt-4 px-6 py-4 text-sm font-bold tracking-wide rounded-full bg-black text-white hover:bg-black/90 shadow-lg uppercase">
                             <Plus className="w-4 h-4 mr-2" />
-                            Perspektive hinzufügen
+                            Quelle hinzufügen
                         </Button>
                     </Link>
                 </div>
@@ -260,7 +294,6 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
 
     return (
         <div className="h-full w-full overflow-y-auto p-6 bg-[#F8CD32] relative">
-
             {/* YouTube Modal Overlay */}
             {selectedVideoId && (
                 <div
@@ -268,14 +301,12 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
                     onClick={() => setSelectedVideoId(null)}
                 >
                     <div className="relative w-full max-w-4xl" onClick={e => e.stopPropagation()}>
-                        {/* Close Button - Outside Top Right */}
                         <button
                             onClick={() => setSelectedVideoId(null)}
                             className="absolute -top-12 right-0 md:-right-12 md:top-0 p-2 text-white/70 hover:text-white transition-colors z-50"
                         >
                             <X className="w-8 h-8" />
                         </button>
-
                         <div className="w-full aspect-video bg-black rounded-xl shadow-2xl overflow-hidden">
                             <iframe
                                 src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1`}
@@ -290,7 +321,6 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
             )}
 
             <div className="max-w-6xl mx-auto pb-20">
-
                 {/* Input Area + Button */}
                 <div className="flex justify-center mb-10">
                     <div className="flex items-center gap-2 w-full max-w-2xl">
@@ -304,8 +334,6 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
                             />
                             <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/40" />
                         </div>
-
-                        {/* Add Button - Round & Black */}
                         {(() => {
                             const isUrl = /^(https?:\/\/[^\s]+)$/.test(searchQuery);
                             return (
@@ -328,11 +356,10 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
                 {/* Filters Row */}
                 <div className="mb-10">
                     <div className="flex justify-center">
-                        {/* Category Filters */}
                         <div className="space-y-4">
                             {categories.length > 0 && (
                                 <div className="flex flex-wrap shadow-sm rounded-sm overflow-hidden">
-                                    {categories.map((category, index) => (
+                                    {categories.map((category) => (
                                         <button
                                             key={category}
                                             onClick={() => setSelectedCategory(
@@ -356,35 +383,6 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
 
                 {/* Content Sections */}
                 <div className="space-y-12">
-
-                    {/* PERSPEKTIVEN SECTION - User Profiles */}
-                    {profiles.length > 0 && (
-                        <section>
-                            <SectionHeader label="Perspektiven" />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {/* Sort: user's own profile first */}
-                                {[...profiles]
-                                    .sort((a, b) => {
-                                        if (a.id === currentUserProfileId) return -1;
-                                        if (b.id === currentUserProfileId) return 1;
-                                        return 0;
-                                    })
-                                    .map(profile => {
-                                        const isOwn = profile.id === currentUserProfileId;
-                                        return (
-                                            <ProfileCard
-                                                key={profile.id}
-                                                profile={profile}
-                                                avatarGradient={isOwn ? currentUserAvatarGradient : getGradientStyle(profile.id)}
-                                                isOwnProfile={isOwn}
-                                            />
-                                        );
-                                    })
-                                }
-                            </div>
-                        </section>
-                    )}
-
                     {/* VIDEOS SECTION */}
                     {groupedArtifacts.videos.length > 0 && (
                         <section>
@@ -396,6 +394,8 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
                                         artifact={artifact}
                                         onPlay={setSelectedVideoId}
                                         slug={slug}
+                                        isAdmin={isAdmin}
+                                        onDelete={handleDelete}
                                     />
                                 ))}
                             </div>
@@ -406,9 +406,9 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
                     {groupedArtifacts.pdfs.length > 0 && (
                         <section>
                             <SectionHeader label="Dokumente" />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {groupedArtifacts.pdfs.map(artifact => (
-                                    <CompactCard key={artifact.id} artifact={artifact} type="pdf" />
+                                    <CompactCard key={artifact.id} artifact={artifact} type="pdf" slug={slug} isAdmin={isAdmin} onDelete={handleDelete} />
                                 ))}
                             </div>
                         </section>
@@ -418,9 +418,9 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
                     {groupedArtifacts.links.length > 0 && (
                         <section>
                             <SectionHeader label="Links" />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {groupedArtifacts.links.map(artifact => (
-                                    <CompactCard key={artifact.id} artifact={artifact} type="link" />
+                                    <CompactCard key={artifact.id} artifact={artifact} type="link" slug={slug} isAdmin={isAdmin} onDelete={handleDelete} />
                                 ))}
                             </div>
                         </section>
@@ -439,7 +439,7 @@ export function MediathekView({ artifacts, slug, profiles = [], currentUserProfi
                                 }}
                                 className="mt-4 text-black font-bold underline decoration-2 hover:decoration-[#F8CD32] transition-all"
                             >
-                                Suche & Filter zurücksetzen
+                                Filter zurücksetzen
                             </button>
                         </div>
                     )}

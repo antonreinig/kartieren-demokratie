@@ -15,6 +15,7 @@ export interface ContributeInitialData {
     url?: string;
     title?: string;
     description?: string;
+    image?: string | null;
     takeaways?: string[];
     category?: string;
     evidenceLevel?: string;
@@ -40,6 +41,7 @@ export default function ContributeForm({ topicId, userId, slug, initialData }: {
     const [evidenceLevel] = useState(initialData?.evidenceLevel)
     const [mainSource] = useState(initialData?.mainSource)
     const [contentCategories] = useState(initialData?.contentCategories)
+    const [imageUrl] = useState(initialData?.image)
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const router = useRouter()
@@ -76,6 +78,7 @@ export default function ContributeForm({ topicId, userId, slug, initialData }: {
             url,
             title,
             description,
+            imageUrl,
             type: getMediaType(url),
             takeaways,
             tags: [selectedCategory], // Send as array for Prisma

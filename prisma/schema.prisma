@@ -104,9 +104,33 @@ model Topic {
   artifacts    Artifact[]
   chatSessions ChatSession[]
   profiles     UserProfile[]
+  synthesis    PerspektiveSynthesis?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// AI-generated synthesis of all perspectives for a topic
+model PerspektiveSynthesis {
+  id              String   @id @default(cuid())
+  
+  topicId         String   @unique
+  topic           Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  
+  // Commonalities - shared values/goals across perspectives (max 4)
+  // [{ text: "...", profileIds: [...] }]
+  commonalities   Json
+  
+  // Tension fields with position-based clusters
+  // [{ leftLabel: "Freiwilligkeit", rightLabel: "Zwang", 
+  //    clusters: [{ position: 0.2, profileIds: [...], summary: "..." }] }]
+  tensionFields   Json
+  
+  // Track when to regenerate
+  profileCount    Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Artifact {
@@ -115,6 +139,7 @@ model Artifact {
   type        ArtifactType
   title       String?
   description String?
+  imageUrl    String?      // Open Graph preview image
   
   topicId     String
   topic       Topic        @relation(fields: [topicId], references: [id], onDelete: Cascade)

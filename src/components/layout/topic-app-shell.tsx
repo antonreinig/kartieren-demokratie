@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Menu, MessageSquare, MonitorPlay, LogIn, LogOut, Trash2 } from "lucide-react";
+import { Menu, MessageSquare, MonitorPlay, LogIn, LogOut, Trash2, Telescope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getGradientStyle } from "@/lib/avatar-gradient";
@@ -17,7 +17,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type ViewMode = "chat" | "mediathek";
+type ViewMode = "chat" | "perspektiven" | "interessantes";
 
 interface TopicAppShellProps {
     topic: {
@@ -32,31 +32,36 @@ interface TopicAppShellProps {
     slug: string;
     guestToken: string;
     chatView: React.ReactNode;
-    mediathekView: React.ReactNode;
+    perspektivenView: React.ReactNode;
+    interessantesView: React.ReactNode;
 }
 
-export function TopicAppShell({ topic, slug, guestToken, chatView, mediathekView }: TopicAppShellProps) {
+export function TopicAppShell({ topic, slug, guestToken, chatView, perspektivenView, interessantesView }: TopicAppShellProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
 
     // Initialize view from URL or default to 'chat'
-    const initialView = searchParams.get('view') === 'mediathek' ? 'mediathek' : 'chat';
-    const [activeView, setActiveView] = useState<ViewMode>(initialView);
+    const getViewFromParams = () => {
+        const view = searchParams.get('view');
+        if (view === 'perspektiven') return 'perspektiven';
+        if (view === 'interessantes') return 'interessantes';
+        return 'chat';
+    };
+    const [activeView, setActiveView] = useState<ViewMode>(getViewFromParams());
 
     // Sync state with URL changes (e.g. back button)
     useEffect(() => {
-        const view = searchParams.get('view') === 'mediathek' ? 'mediathek' : 'chat';
-        setActiveView(view);
+        setActiveView(getViewFromParams());
     }, [searchParams]);
 
     const handleViewChange = (view: ViewMode) => {
         setActiveView(view);
         const params = new URLSearchParams(searchParams.toString());
-        if (view === 'mediathek') {
-            params.set('view', 'mediathek');
-        } else {
+        if (view === 'chat') {
             params.delete('view');
+        } else {
+            params.set('view', view);
         }
         // Use replace to avoid filling history stack with tab switches
         router.replace(`${pathname}?${params.toString()}`);
@@ -92,7 +97,7 @@ export function TopicAppShell({ topic, slug, guestToken, chatView, mediathekView
                 {/* Top Header */}
                 <header className={cn(
                     "h-16 border-b flex items-center justify-between px-4 md:px-6 shrink-0 relative transition-colors",
-                    activeView === "mediathek" ? "bg-[#F8CD32] border-[#E5BC2E]" : "bg-[#EAEAEA] border-zinc-200"
+                    activeView === "interessantes" ? "bg-[#F8CD32] border-[#E5BC2E]" : "bg-[#EAEAEA] border-zinc-200"
                 )}>
 
                     {/* Left: Brand */}
@@ -104,15 +109,15 @@ export function TopicAppShell({ topic, slug, guestToken, chatView, mediathekView
                     {/* Center: Switcher */}
                     <div className={cn(
                         "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center border p-1 rounded-full bg-transparent",
-                        activeView === "mediathek" ? "border-black/30" : "border-zinc-300"
+                        activeView === "interessantes" ? "border-black/30" : "border-zinc-300"
                     )}>
                         <button
                             onClick={() => handleViewChange("chat")}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all text-black",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all text-black",
                                 activeView === "chat"
                                     ? "bg-[#F8CD32] shadow-sm"
-                                    : activeView === "mediathek"
+                                    : activeView === "interessantes"
                                         ? "hover:bg-black/10"
                                         : "hover:bg-zinc-100"
                             )}
@@ -121,16 +126,30 @@ export function TopicAppShell({ topic, slug, guestToken, chatView, mediathekView
                             <span className="hidden sm:inline">Gespräch</span>
                         </button>
                         <button
-                            onClick={() => handleViewChange("mediathek")}
+                            onClick={() => handleViewChange("perspektiven")}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all text-black",
-                                activeView === "mediathek"
+                                "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all text-black",
+                                activeView === "perspektiven"
+                                    ? "bg-[#F8CD32] shadow-sm"
+                                    : activeView === "interessantes"
+                                        ? "hover:bg-black/10"
+                                        : "hover:bg-zinc-100"
+                            )}
+                        >
+                            <Telescope className="w-4 h-4" />
+                            <span className="hidden sm:inline">Perspektiven</span>
+                        </button>
+                        <button
+                            onClick={() => handleViewChange("interessantes")}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all text-black",
+                                activeView === "interessantes"
                                     ? "bg-[#EAEAEA] shadow-sm"
                                     : "hover:bg-zinc-100"
                             )}
                         >
                             <MonitorPlay className="w-4 h-4" />
-                            <span className="hidden sm:inline">Perspektiven</span>
+                            <span className="hidden sm:inline">Interessantes</span>
                         </button>
                     </div>
 
@@ -185,7 +204,9 @@ export function TopicAppShell({ topic, slug, guestToken, chatView, mediathekView
 
                 {/* Viewport */}
                 <main className="flex-1 overflow-hidden relative bg-[#EAEAEA]">
-                    {activeView === "chat" ? chatView : mediathekView}
+                    {activeView === "chat" && chatView}
+                    {activeView === "perspektiven" && perspektivenView}
+                    {activeView === "interessantes" && interessantesView}
                 </main>
             </div>
         </div>
